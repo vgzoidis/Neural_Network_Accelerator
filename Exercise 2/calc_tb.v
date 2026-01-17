@@ -52,13 +52,13 @@ module calc_tb;
         input l, r, d;
         input [15:0] switch_val;
         input [15:0] expected;
-        input [8*20-1:0] op_name;
+        input [8*4-1:0] op_name; //Τα ονόματα των πράξεών έχουν έως 4 χαρακτήρες
         begin
             btnl = l;
             btnr = r;
             btnd = d;
             sw = switch_val;
-            #10;  // Αναμονή για σταθεροποίηση σημάτων
+            #1;  // Αναμονή για σταθεροποίηση σημάτων
             
             // Πάτημα κεντρικού πλήκτρου
             btnc = 1;

@@ -206,33 +206,33 @@ endmodule
 
 \subsection{Encoder (calc\_enc.v)}
 
-Ο encoder υλοποιήθηκε σε \textbf{structural Verilog} χρησιμοποιώντας βασικές πύλες (AND, OR, NOT, BUF). Οι λογικές εξισώσεις για κάθε bit του alu\_op προέκυψαν από τον πίνακα αλήθειας της εκφώνησης:
+Ο encoder υλοποιήθηκε σε \textbf{structural Verilog} χρησιμοποιώντας βασικές πύλες (AND, OR, NOT, XOR) σύμφωνα με τα Σχήματα 2-5 της εκφώνησης. Οι λογικές εξισώσεις για κάθε bit του alu\_op είναι:
+
+\begin{align}
+\text{alu\_op}[0] &= (\overline{\text{btnl}} \cdot \text{btnd}) + ((\text{btnl} \cdot \text{btnr}) \cdot \overline{\text{btnd}}) & \text{(Σχ. 2)} \\
+\text{alu\_op}[1] &= \text{btnl} \cdot (\overline{\text{btnr}} + \overline{\text{btnd}}) & \text{(Σχ. 3)} \\
+\text{alu\_op}[2] &= (\overline{\text{btnl}} \cdot \text{btnr}) + (\text{btnl} \cdot \overline{(\text{btnr} \oplus \text{btnd})}) & \text{(Σχ. 4)} \\
+\text{alu\_op}[3] &= (\text{btnl} \cdot \text{btnr}) + (\text{btnl} \cdot \text{btnd}) & \text{(Σχ. 5)}
+\end{align}
+
+Ο πίνακας αλήθειας που προκύπτει από αυτές τις εξισώσεις:
 
 \begin{center}
 \begin{tabular}{|c|c|c|c|l|}
 \hline
 btnl & btnr & btnd & alu\_op & Λειτουργία \\
 \hline
-0 & 0 & 0 & 0000 & SRL \\
-0 & 0 & 1 & 0101 & SLL \\
-0 & 1 & 0 & 0100 & ADD \\
-0 & 1 & 1 & 1100 & XOR \\
-1 & 0 & 0 & 0010 & NOR \\
-1 & 0 & 1 & 0111 & SUB \\
-1 & 1 & 0 & 0110 & MULT \\
-1 & 1 & 1 & 1111 & NAND \\
+0 & 0 & 0 & 0000 & SRL (Λογική ολίσθηση δεξιά) \\
+0 & 0 & 1 & 0001 & SLL (Λογική ολίσθηση αριστερά) \\
+0 & 1 & 0 & 0100 & ADD (Πρόσθεση) \\
+0 & 1 & 1 & 0101 & SUB (Αφαίρεση) \\
+1 & 0 & 0 & 0110 & MULT (Πολλαπλασιασμός) \\
+1 & 0 & 1 & 1010 & NOR \\
+1 & 1 & 0 & 1011 & NAND \\
+1 & 1 & 1 & 1100 & XOR \\
 \hline
 \end{tabular}
 \end{center}
-
-Οι απλοποιημένες εξισώσεις με χάρτες Karnaugh είναι:
-
-\begin{align}
-\text{alu\_op}[0] &= \text{btnd} \cdot (\text{btnl} + \overline{\text{btnr}}) \\
-\text{alu\_op}[1] &= \text{btnl} \\
-\text{alu\_op}[2] &= \text{btnr} + \text{btnd} \\
-\text{alu\_op}[3] &= \text{btnr} \cdot \text{btnd}
-\end{align}
 
 \subsection{Διάγραμμα Αριθμομηχανής}
 
