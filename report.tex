@@ -74,7 +74,7 @@
     \textbf{Ψηφιακά Συστήματα HW σε Χαμηλά Επίπεδα Λογικής I}\\
     \vspace{1cm}
     \Large Αναφορά Εργαστηριακών Ασκήσεων
-     
+    
     Εξοικείωσης με τη Verilog\\
     \vspace{10cm}
 }
@@ -376,43 +376,67 @@ else
 \end{itemize}
 
 \subsubsection{Διάγραμμα Καταστάσεων FSM}
-
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
-    ->,>=Stealth,
-    node distance=2.5cm,
-    state/.style={circle,draw,minimum size=1.5cm,align=center,font=\small},
-    every edge/.style={draw,font=\footnotesize,align=center} % align=center εδώ για να επιτρέπει \\
+    scale=0.7, 
+    transform shape, 
+    ->, >=Stealth, auto, semithick,
+    node distance = 2.8cm and 3.2cm, % Slightly larger distances for uniform 2.5cm nodes
+    state/.style = {
+        circle, 
+        draw, 
+        minimum width = 3.5cm, % All states uniform size
+        align=center, 
+        font=\bfseries\footnotesize,
+        fill=white
+    },
+    initial text = {Reset}
 ]
-    % States
-    \node[state,fill=red!20] (DEACT) {DEACT\\000};
-    \node[state,fill=yellow!20] (LOAD) [right of=DEACT] {LOAD\\001};
-    \node[state,fill=blue!20] (PRE) [right of=LOAD] {PRE\\010};
-    \node[state,fill=green!20] (INPUT) [below of=PRE] {INPUT\\011};
-    \node[state,fill=orange!20] (OUT1) [left of=INPUT] {OUT1\\100};
-    \node[state,fill=purple!20] (OUT2) [left of=OUT1] {OUT2\\101};
-    \node[state,fill=cyan!20] (POST) [below of=OUT2] {POST\\110};
-    \node[state,fill=gray!20] (IDLE) [right of=POST] {IDLE\\111};
-    
-    % Transitions
-    \path (DEACT) edge[bend left] node[above] {enable \&\\!loaded} (LOAD);
-    \path (DEACT) edge[bend right=60] node[below] {enable \&\\loaded} (PRE);
-    \path (LOAD) edge node[above] {} (IDLE);
-    \path (PRE) edge node[right] {!ovf} (INPUT);
-    \path (INPUT) edge node[above] {!ovf} (OUT1);
-    \path (OUT1) edge node[above] {!ovf} (OUT2);
-    \path (OUT2) edge node[right] {!ovf} (POST);
-    \path (POST) edge node[above] {} (IDLE);
-    \path (IDLE) edge[bend left] node[below] {enable} (PRE);
-    
-    % Overflow transitions
-    \path (PRE) edge[bend right=30,dashed,red] node[left] {ovf} (IDLE);
-    \path (INPUT) edge[bend right=20,dashed,red] node[below] {ovf} (IDLE);
-    \path (OUT1) edge[bend left=20,dashed,red] node[below] {ovf} (IDLE);
-    \path (OUT2) edge[dashed,red] node[right] {ovf} (IDLE);
+
+    % --- Nodes (States) ---
+    \node[state, fill=blue!10, initial below] (s0) {S0 \\ DEACTIVATED};
+    \node[state, fill=blue!10] (s1) [right=of s0] {S1 \\ LOADING \\ (Weights/Biases)};
+    \node[state, fill=green!10] (s2) [below=of s1] {S2 \\ IDLE};
+    \node[state] (s3) [right=of s2] {S3 \\ PRE-PROC \\ (Shift Inputs)};
+    \node[state] (s4) [right=of s3] {S4 \\ INPUT LAYER \\ (Neurons 1\&2)};
+    \node[state] (s5) [below=of s4] {S5 \\ OUTPUT \\ LAYER \\ (Neuron 3)};
+    \node[state] (s6) [left=of s5]  {S6 \\ POST-PROC \\ (Final Shift)};
+
+    % --- Transitions ---
+    \path (s0) edge node {enable=1} (s1);
+    \path (s1) edge [loop right] node {cnt $<$ limit} (s1);
+    \path (s1) edge node {done} (s2);
+    \path (s2) edge [loop left] node {enable=0} (s2);
+    \path (s2) edge node {enable=1} (s3);
+    \path (s3) edge node [below] {!ovf} (s4);
+    \path (s4) edge node [right] {!ovf} (s5);
+    \path (s5) edge node [above] {!ovf} (s6);
+    \path (s6) edge [bend left=45] node [left, midway] {Done} (s2);
+
+    % C. Overflow Handling (Red Dashed Lines)
+    \draw [red, dashed, thick] (s3) edge [bend right=45] node [above, sloped] {OVF} (s2);
+    \draw [red, dashed, thick] (s4) edge [bend right=55] node [above, near start] {OVF} (s2);
+    \draw [red, dashed, thick] (s5) edge [bend left=10] node [above, near start] {OVF} (s2);
+    \draw [red, dashed, thick] (s6) edge [bend left=15] node [left, near start] {OVF} (s2);
+
+    % --- Legend/Notes (Moved to bottom left) ---
+    \node [draw, rectangle, align=left, font=\scriptsize,
+            above left=-1cm and 9.5cm of s6.east % Positioning relative to bottom left state
+          ] {
+        \large
+        \textcolor{blue}{Blue Nodes}: Initialization\\
+        \\[0.1ex]\large
+        \textcolor{green!50!black}{Green Node}: Ready State\\
+        \\[0.1ex]\large
+        \textcolor{black}{White Nodes}: Normal Processing\\
+        \\[0.1ex]\large
+        \textcolor{red}{Red Dashed}: Overflow Exception\\
+        (Output saturates to MAX\_POS)
+    };
+
 \end{tikzpicture}
-\caption{Διάγραμμα καταστάσεων FSM του νευρωνικού (κόκκινες διακεκομμένες: overflow transitions)}
+\caption{Διάγραμμα καταστάσεων FSM του νευρωνικού}
 \end{figure}
 
 \subsubsection{Περιγραφή Καταστάσεων}
