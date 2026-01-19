@@ -322,16 +322,58 @@ Reset & xxxx & xxxx & Reset & 0x0000 & PASS \\
 
 \subsection{Data Forwarding}
 
-Σε περίπτωση που η διεύθυνση ανάγνωσης ταυτίζεται με διεύθυνση εγγραφής, δίνεται προτεραιότητα στα νέα δεδομένα:
+Σε περίπτωση που η διεύθυνση ανάγνωσης ταυτίζεται με διεύθυνση εγγραφής και το \texttt{write} είναι ενεργό, επιστρέφονται απευθείας τα νέα δεδομένα (write-first behavior):
 
-\begin{lstlisting}[caption=Data forwarding στο Register File]
-if (readReg1 == writeReg1)
-    readData1 <= writeData1;
-else if (readReg1 == writeReg2)
-    readData1 <= writeData2;
-else
+\begin{lstlisting}[caption=Data Forwarding με προτεραιότητα εγγραφής]
+if (write) begin
+    // Εγγραφή δεδομένων
+    registers[writeReg1] <= writeData1;
+    registers[writeReg2] <= writeData2;
+    
+    // Forwarding: προτεραιότητα στο writeData
+    if (readReg1 == writeReg1)      readData1 <= writeData1;
+    else if (readReg1 == writeReg2) readData1 <= writeData2;
+    else                            readData1 <= registers[readReg1];
+    // ... ομοίως για ports 2, 3, 4
+end
+else begin
+    // Μόνο ανάγνωση
     readData1 <= registers[readReg1];
+    // ...
+end
 \end{lstlisting}
+
+\subsection{Σχεδιαστικές Αποφάσεις - Σύγχρονη Ανάγνωση}
+
+Σύμφωνα με την εκφώνηση, το Register File υλοποιεί \textbf{σύγχρονη ανάγνωση} μέσα σε ένα always block:
+
+\begin{itemize}
+    \item \textbf{Απαίτηση εκφώνησης:} ``Μέσω ενός always block, θα γίνεται η εγγραφή ή ανάγνωση''
+    \item \textbf{Αμοιβαίος αποκλεισμός:} ``θεωρούμε ότι δεν μπορούμε να πραγματοποιήσουμε ταυτόχρονα και ανάγνωση και εγγραφή''
+    \item \textbf{Registered outputs:} Τα \texttt{readData} ενημερώνονται στο \texttt{posedge clk}
+    \item \textbf{Επίπτωση στο FSM:} Τα δεδομένα είναι διαθέσιμα στον \textbf{επόμενο} κύκλο
+\end{itemize}
+
+\subsubsection{Συμβατότητα με το Νευρωνικό Δίκτυο}
+
+Επειδή το regfile έχει σύγχρονη ανάγνωση, οι διευθύνσεις πρέπει να τεθούν \textbf{ένα κύκλο νωρίτερα}:
+
+\begin{table}[H]
+\centering
+\caption{Pipelining διευθύνσεων RegFile στο FSM}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Τρέχουσα Κατάσταση} & \textbf{Διευθύνσεις που θέτουμε} & \textbf{Δεδομένα για} \\
+\hline
+S\_IDLE / S\_DEACTIVATED & shift\_bias\_1, shift\_bias\_2 & S\_PREPROCESS \\
+S\_PREPROCESS & weight\_1, bias\_1, weight\_2, bias\_2 & S\_INPUT\_LAYER \\
+S\_INPUT\_LAYER & weight\_3, weight\_4, bias\_3 & S\_OUTPUT\_LAYER \\
+S\_OUTPUT\_LAYER & shift\_bias\_3 & S\_POSTPROCESS \\
+\hline
+\end{tabular}
+\end{table}
+
+Αυτή η τεχνική ``read-ahead'' εξασφαλίζει ότι τα δεδομένα είναι έτοιμα όταν τα χρειάζεται η ALU/MAC.
 
 %==============================================================================
 \section{Άσκηση 4: Νευρωνικό Δίκτυο (AI Accelerator)}
@@ -379,93 +421,147 @@ else
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
-    scale=0.7, 
+    scale=0.6, 
     transform shape, 
     ->, >=Stealth, auto, semithick,
-    node distance = 2.8cm and 3.2cm, % Slightly larger distances for uniform 2.5cm nodes
+    node distance = 2.2cm and 2.5cm,
     state/.style = {
         circle, 
         draw, 
-        minimum width = 3.5cm, % All states uniform size
+        minimum width = 2.8cm,
         align=center, 
-        font=\bfseries\footnotesize,
+        font=\bfseries\tiny,
         fill=white
     },
     initial text = {Reset}
 ]
 
-    % --- Nodes (States) ---
+    % --- Nodes (States) - 8 states ---
     \node[state, fill=blue!10, initial below] (s0) {S0 \\ DEACTIVATED};
-    \node[state, fill=blue!10] (s1) [right=of s0] {S1 \\ LOADING \\ (Weights/Biases)};
-    \node[state, fill=green!10] (s2) [below=of s1] {S2 \\ IDLE};
-    \node[state] (s3) [right=of s2] {S3 \\ PRE-PROC \\ (Shift Inputs)};
-    \node[state] (s4) [right=of s3] {S4 \\ INPUT LAYER \\ (Neurons 1\&2)};
-    \node[state] (s5) [below=of s4] {S5 \\ OUTPUT \\ LAYER \\ (Neuron 3)};
-    \node[state] (s6) [left=of s5]  {S6 \\ POST-PROC \\ (Final Shift)};
+    \node[state, fill=blue!10] (s1) [right=of s0] {S1 \\ LOADING};
+    \node[state, fill=green!10] (s2) [below=of s0] {S2 \\ IDLE};
+    \node[state] (s3) [right=of s2] {S3 \\ PRE-PROC};
+    \node[state] (s4) [right=of s3] {S4 \\ INPUT \\ LAYER};
+    \node[state, fill=orange!10] (s5a) [below=of s4] {S5a \\ OUTPUT \\ LAYER1};
+    \node[state, fill=orange!10] (s5b) [left=of s5a] {S5b \\ OUTPUT \\ LAYER2};
+    \node[state] (s6) [left=of s5b] {S6 \\ POST-PROC};
 
     % --- Transitions ---
     \path (s0) edge node {enable=1} (s1);
-    \path (s1) edge [loop right] node {cnt $<$ limit} (s1);
-    \path (s1) edge node {done} (s2);
-    \path (s2) edge [loop left] node {enable=0} (s2);
-    \path (s2) edge node {enable=1} (s3);
-    \path (s3) edge node [below] {!ovf} (s4);
-    \path (s4) edge node [right] {!ovf} (s5);
-    \path (s5) edge node [above] {!ovf} (s6);
-    \path (s6) edge [bend left=45] node [left, midway] {Done} (s2);
+    \path (s1) edge [loop right] node {cnt $<$ 5} (s1);
+    \path (s1) edge [bend left=30] node {done} (s2);
+    \path (s2) edge [loop left] node {en=0} (s2);
+    \path (s2) edge node {en=1} (s3);
+    \path (s3) edge node {} (s4);
+    \path (s4) edge node {} (s5a);
+    \path (s5a) edge node {reg} (s5b);
+    \path (s5b) edge node {} (s6);
+    \path (s6) edge node {} (s2);
 
-    % C. Overflow Handling (Red Dashed Lines)
-    \draw [red, dashed, thick] (s3) edge [bend right=45] node [above, sloped] {OVF} (s2);
-    \draw [red, dashed, thick] (s4) edge [bend right=55] node [above, near start] {OVF} (s2);
-    \draw [red, dashed, thick] (s5) edge [bend left=10] node [above, near start] {OVF} (s2);
-    \draw [red, dashed, thick] (s6) edge [bend left=15] node [left, near start] {OVF} (s2);
+    % Overflow Handling (Red Dashed Lines)
+    \draw [red, dashed] (s3) edge [bend left=60] node [above, sloped, font=\tiny] {OVF} (s2);
+    \draw [red, dashed] (s4) edge [bend left=20] node [right, font=\tiny] {OVF} (s2);
+    \draw [red, dashed] (s5a) edge [bend right=30] node [below, font=\tiny] {OVF} (s2);
+    \draw [red, dashed] (s5b) edge [bend right=20] node [below, font=\tiny] {OVF} (s2);
+    \draw [red, dashed] (s6) edge [bend right=10] node [left, font=\tiny] {OVF} (s2);
 
-    % --- Legend/Notes (Moved to bottom left) ---
-    \node [draw, rectangle, align=left, font=\scriptsize,
-            above left=-1cm and 9.5cm of s6.east % Positioning relative to bottom left state
-          ] {
-        \large
-        \textcolor{blue}{Blue Nodes}: Initialization\\
-        \\[0.1ex]\large
-        \textcolor{green!50!black}{Green Node}: Ready State\\
-        \\[0.1ex]\large
-        \textcolor{black}{White Nodes}: Normal Processing\\
-        \\[0.1ex]\large
-        \textcolor{red}{Red Dashed}: Overflow Exception\\
-        (Output saturates to MAX\_POS)
+    % --- Legend ---
+    \node [draw, rectangle, align=left, font=\tiny, below=0.5cm of s6] {
+        \textcolor{blue}{Blue}: Init |
+        \textcolor{green!50!black}{Green}: Ready |
+        \textcolor{orange}{Orange}: Pipelined (break loop) |
+        \textcolor{red}{Red}: Overflow
     };
 
 \end{tikzpicture}
-\caption{Διάγραμμα καταστάσεων FSM του νευρωνικού}
+\caption{Διάγραμμα καταστάσεων FSM (8 states) - Το output layer χωρίζεται σε S5a και S5b για αποφυγή combinatorial loop}
 \end{figure}
 
 \subsubsection{Περιγραφή Καταστάσεων}
 
 \begin{table}[H]
 \centering
-\caption{Καταστάσεις FSM}
-\begin{tabular}{|c|c|p{8cm}|}
+\caption{Καταστάσεις FSM με διαδοχική κωδικοποίηση (8 states)}
+\begin{tabular}{|c|c|c|p{6.5cm}|}
 \hline
-\textbf{Κατάσταση} & \textbf{Κωδικός} & \textbf{Περιγραφή} \\
+\textbf{Κατάσταση} & \textbf{ID} & \textbf{Κωδικός} & \textbf{Περιγραφή} \\
 \hline
-DEACTIVATED & 000 & Αρχική κατάσταση, αναμονή για enable \\
-LOAD\_WEIGHTS & 001 & Φόρτωση βαρών/πολώσεων από ROM σε RegFile \\
-PREPROCESS & 010 & Αριθμητική ολίσθηση δεξιά στις εισόδους \\
-INPUT\_LAYER & 011 & Εκτέλεση νευρώνων 1 και 2 (παράλληλα) \\
-OUTPUT\_LAYER1 & 100 & Πολλαπλασιασμοί για νευρώνα 3 \\
-OUTPUT\_LAYER2 & 101 & Προσθέσεις για νευρώνα 3 \\
-POSTPROCESS & 110 & Αριθμητική ολίσθηση αριστερά στην έξοδο \\
-IDLE & 111 & Αναμονή για νέες εισόδους \\
+S\_DEACTIVATED & S0 & 000 & Αρχική κατάσταση μετά από reset \\
+S\_LOADING & S1 & 001 & Φόρτωση βαρών/πολώσεων από ROM σε RegFile \\
+S\_IDLE & S2 & 010 & Αναμονή για νέες εισόδους (Ready state) \\
+S\_PREPROCESS & S3 & 011 & Αριθμητική ολίσθηση δεξιά στις εισόδους \\
+S\_INPUT\_LAYER & S4 & 100 & Εκτέλεση νευρώνων 1 και 2 (παράλληλα) \\
+S\_OUTPUT\_LAYER1 & S5a & 101 & Νευρώνας 3 - Πρώτο MAC: inter\_3 × w3 + b3 \\
+S\_OUTPUT\_LAYER2 & S5b & 110 & Νευρώνας 3 - Δεύτερο MAC: inter\_4 × w4 + temp \\
+S\_POSTPROCESS & S6 & 111 & Αριθμητική ολίσθηση αριστερά στην έξοδο \\
 \hline
 \end{tabular}
 \end{table}
+
+\subsubsection{Σχεδιαστική Απόφαση: Διαχωρισμός Output Layer σε 2 Καταστάσεις}
+
+Το output layer του νευρωνικού δικτύου απαιτεί τον υπολογισμό:
+\begin{align}
+\text{mul3} &= \text{inter\_3} \times \text{weight\_3} \\
+\text{mac3} &= \text{mul3} + \text{bias\_3} \\
+\text{mul4} &= \text{inter\_4} \times \text{weight\_4} \\
+\text{mac4} &= \text{mul4} + \text{mac3} \quad \textit{(εξάρτηση!)}
+\end{align}
+
+\textbf{Πρόβλημα: Combinatorial Loop}
+
+Αν προσπαθήσουμε να εκτελέσουμε και τα δύο MAC σε ένα κύκλο:
+\begin{lstlisting}[caption=Προβληματικός κώδικας (combinatorial loop)]
+// BAD: Zero-delay loop - Exit 137!
+mac2_op3 = mac1_result;  // Απευθείας σύνδεση
+\end{lstlisting}
+
+Αυτό δημιουργεί \textbf{combinatorial loop} γιατί:
+\begin{itemize}
+    \item Το MAC1 είναι συνδυαστικό κύκλωμα (χωρίς ρολόι)
+    \item Η έξοδος του MAC1 τροφοδοτείται στην είσοδο του MAC2
+    \item Το MAC2 είναι επίσης συνδυαστικό
+    \item Δεν υπάρχει καταχωρητής που να ``σπάει'' τον βρόχο
+\end{itemize}
+
+\textbf{Λύση: Pipelining με Register}
+
+Διαχωρίζουμε το output layer σε \textbf{δύο καταστάσεις}:
+\begin{enumerate}
+    \item \textbf{S\_OUTPUT\_LAYER1:} MAC1 υπολογίζει \texttt{inter\_3 × weight\_3 + bias\_3}. Το αποτέλεσμα αποθηκεύεται σε register (\texttt{mac1\_temp}) στο τέλος του κύκλου.
+    \item \textbf{S\_OUTPUT\_LAYER2:} MAC1 υπολογίζει \texttt{inter\_4 × weight\_4 + mac1\_temp}. Χρησιμοποιεί το \textbf{registered} αποτέλεσμα από τον προηγούμενο κύκλο.
+\end{enumerate}
+
+\begin{lstlisting}[caption=Σωστός κώδικας (με register)]
+// S_OUTPUT_LAYER1: Αποθήκευση σε register
+always @(posedge clk) begin
+    if (state == S_OUTPUT_LAYER1)
+        mac1_temp <= mac1_result;  // Registered!
+end
+
+// S_OUTPUT_LAYER2: Χρήση του registered result
+mac1_op3 = mac1_temp;  // No loop!
+\end{lstlisting}
+
+\textbf{Συνέπεια:} Η υλοποίηση απαιτεί \textbf{8 καταστάσεις} αντί για 7, αλλά εξασφαλίζει σωστή λειτουργία χωρίς combinatorial loops.
+
+\subsubsection{Επιλογή Κωδικοποίησης Καταστάσεων}
+
+Επιλέχθηκε \textbf{διαδοχική κωδικοποίηση (sequential encoding)} για τις καταστάσεις:
+
+\begin{itemize}
+    \item \textbf{Αντιστοιχία με FSM diagram:} Η κωδικοποίηση S0=000, S1=001, S2=010, ... ακολουθεί ακριβώς τη ροή του διαγράμματος καταστάσεων
+    \item \textbf{Ευκολία debugging:} Η τιμή του state register αντιστοιχεί άμεσα στον αριθμό κατάστασης (π.χ. state=3 σημαίνει S3)
+    \item \textbf{Απλότητα επαλήθευσης:} Ο έλεγχος της σωστής μετάβασης γίνεται πιο διαισθητικός
+    \item \textbf{Εναλλακτικές:} Θα μπορούσε να χρησιμοποιηθεί one-hot encoding (7 bits) για ταχύτερη αποκωδικοποίηση ή Gray encoding για μείωση switching activity, αλλά η διαδοχική κωδικοποίηση είναι επαρκής για 7 καταστάσεις
+\end{itemize}
 
 \subsection{Χειρισμός Υπερχείλισης}
 
 Σε περίπτωση overflow σε οποιοδήποτε στάδιο:
 \begin{enumerate}
     \item Το FSM μεταβαίνει άμεσα στην κατάσταση IDLE
-    \item Η έξοδος τίθεται στον μέγιστο θετικό αριθμό (0x7FFFFFFF)
+    \item Η έξοδος τίθεται στο 0xFFFFFFFF (σύμφωνα με το reference model nn\_model 0xFFFFFFFF)
     \item Το σήμα \texttt{total\_ovf} ενεργοποιείται
     \item Το \texttt{ovf\_fsm\_stage} δείχνει το στάδιο όπου συνέβη η υπερχείλιση
 \end{enumerate}
@@ -479,6 +575,99 @@ IDLE & 111 & Αναμονή για νέες εισόδους \\
     \item Καλύτερη απόδοση λόγω άμεσης πρόσβασης
     \item Το RegFile χρησιμοποιείται μόνο για τα βάρη και τις πολώσεις
 \end{itemize}
+
+\subsection{Σχεδιαστικές Αποφάσεις}
+
+\subsubsection{Αρχιτεκτονική Hardware}
+
+\begin{enumerate}
+    \item \textbf{2 MAC Units σε παράλληλη διάταξη:}
+    \begin{itemize}
+        \item Επιτρέπει τον ταυτόχρονο υπολογισμό δύο νευρώνων (1 \& 2) στο input layer
+        \item Μειώνει τον αριθμό κύκλων ρολογιού για ολόκληρο τον υπολογισμό
+        \item Κάθε MAC αποτελείται από 2 ALUs σε σειρά (πολλαπλασιασμός → πρόσθεση)
+    \end{itemize}
+    
+    \item \textbf{2 ALUs για shift operations:}
+    \begin{itemize}
+        \item Χρησιμοποιούνται στα στάδια Pre-process και Post-process
+        \item Επιτρέπουν παράλληλη ολίσθηση των δύο εισόδων
+        \item Αριθμητική ολίσθηση (SRA/SLA) για διατήρηση προσήμου
+    \end{itemize}
+    
+    \item \textbf{Register File με 4 θύρες ανάγνωσης:}
+    \begin{itemize}
+        \item Επαρκεί για την ανάγνωση 4 τιμών ανά κύκλο (π.χ. weight1, bias1, weight2, bias2)
+        \item Αποφεύγονται extra κύκλοι για sequential reads
+        \item Οι 2 θύρες εγγραφής χρησιμοποιούνται κατά το loading
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{Οργάνωση FSM}
+
+\begin{enumerate}
+    \item \textbf{Moore FSM αντί για Mealy:}
+    \begin{itemize}
+        \item Οι έξοδοι καθορίζονται μόνο από την τρέχουσα κατάσταση
+        \item Αποφυγή glitches στις εξόδους
+        \item Πιο εύκολο timing closure
+    \end{itemize}
+    
+    \item \textbf{Διαχωρισμός Loading από Processing:}
+    \begin{itemize}
+        \item Τα βάρη φορτώνονται μόνο μία φορά (S1 → S2)
+        \item Μετά την αρχικοποίηση, το σύστημα κυκλώνει μεταξύ S2-S6
+        \item Σημαία \texttt{weights\_loaded} αποτρέπει επαναφόρτωση
+    \end{itemize}
+    
+    \item \textbf{Άμεση μετάβαση σε IDLE κατά overflow:}
+    \begin{itemize}
+        \item Αποφεύγονται περιττοί υπολογισμοί
+        \item Η έξοδος saturates στο 0xFFFFFFFF (σύμφωνα με nn\_model)
+        \item Το \texttt{ovf\_fsm\_stage} καταγράφει πού συνέβη το σφάλμα
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{Διαχείριση Μνήμης}
+
+\begin{enumerate}
+    \item \textbf{ROM για αρχικά βάρη:}
+    \begin{itemize}
+        \item Τα βάρη αποθηκεύονται σε εξωτερικό αρχείο (\texttt{rom\_bytes.data})
+        \item Διπλή θύρα ανάγνωσης για γρήγορη φόρτωση (2 τιμές/κύκλο)
+        \item 5 κύκλοι για φόρτωση όλων των 10 παραμέτρων
+    \end{itemize}
+    
+    \item \textbf{Ενδιάμεσοι καταχωρητές (inter\_1 έως inter\_5):}
+    \begin{itemize}
+        \item Αποθηκεύουν τα ενδιάμεσα αποτελέσματα μεταξύ σταδίων
+        \item Άμεση πρόσβαση χωρίς καθυστέρηση RegFile
+        \item Απλοποιούν τον έλεγχο ροής δεδομένων
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{Πίνακας Διευθύνσεων Register File}
+
+\begin{table}[H]
+\centering
+\caption{Αντιστοίχιση διευθύνσεων RegFile με παραμέτρους}
+\begin{tabular}{|c|c|l|}
+\hline
+\textbf{Διεύθυνση} & \textbf{Hex} & \textbf{Παράμετρος} \\
+\hline
+0x02 & 2 & shift\_bias\_1 \\
+0x03 & 3 & shift\_bias\_2 \\
+0x04 & 4 & weight\_1 \\
+0x05 & 5 & bias\_1 \\
+0x06 & 6 & weight\_2 \\
+0x07 & 7 & bias\_2 \\
+0x08 & 8 & weight\_3 \\
+0x09 & 9 & weight\_4 \\
+0x0A & A & bias\_3 \\
+0x0B & B & shift\_bias\_3 \\
+\hline
+\end{tabular}
+\end{table}
 
 \subsection{Testbench Νευρωνικού}
 
