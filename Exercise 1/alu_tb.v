@@ -3,7 +3,7 @@
 module alu_tb;
 
     // 1. Δήλωση σημάτων για σύνδεση με το Module (UUT)
-    reg signed [31:0] op1;      // Χρησιμοποιούμε signed για να βλέπουμε σωστά τα νούμερα στο log
+    reg signed [31:0] op1;
     reg signed [31:0] op2;
     reg [3:0] alu_op;
     
@@ -11,7 +11,7 @@ module alu_tb;
     wire signed [31:0] result;
     wire ovf;
 
-    // 2. Ορισμός Παραμέτρων (ίδιες με το alu.v για ευκολία)
+    // 2. Ορισμός Παραμέτρων
     parameter [3:0] ALUOP_AND   = 4'b1000;
     parameter [3:0] ALUOP_OR    = 4'b1001;
     parameter [3:0] ALUOP_NOR   = 4'b1010;
