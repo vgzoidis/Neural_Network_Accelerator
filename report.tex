@@ -680,6 +680,69 @@ mac1_op3 = mac1_temp;  // No loop!
 
 Η συνάρτηση αναφοράς \texttt{nn\_model} υπολογίζει το αναμενόμενο αποτέλεσμα για σύγκριση.
 
+\subsubsection{Αλλαγές για Συμβατότητα με EDA Playground (Icarus Verilog 12)}
+
+Κατά την εκτέλεση του testbench στο EDA Playground με τον Icarus Verilog 12, αντιμετωπίστηκαν ορισμένα προβλήματα που απαίτησαν τροποποιήσεις. Παρακάτω περιγράφονται οι αλλαγές και τα διδάγματα (learnings):
+
+\paragraph{1. Επίλυση Συντακτικού Λάθους \texttt{\$urandom\_range}}
+
+\textbf{Πρόβλημα:} Ο Icarus Verilog 12 εμφανίζει συντακτικά λάθη όταν χρησιμοποιούνται nested κλήσεις \texttt{\$urandom\_range} με αριθμητικές πράξεις και bit-slicing απευθείας μέσα σε κλήση task (π.χ. \texttt{run\_test(\$signed(\$urandom...))}).
+
+\textbf{Λύση:} Εισήχθησαν \textbf{προσωρινές μεταβλητές} (\texttt{raw\_rand}, \texttt{temp\_in1}, \texttt{temp\_in2}):
+\begin{lstlisting}[style=verilog]
+reg [31:0] raw_rand;
+reg signed [31:0] temp_in1, temp_in2;
+
+// Παράδειγμα χρήσης:
+raw_rand = $urandom_range(8191, 0);
+temp_in1 = $signed(raw_rand) - 32'd4096;
+run_test(temp_in1, temp_in2, "Normal Range");
+\end{lstlisting}
+
+\textbf{Διδαγμα:} Ο διαχωρισμός της γέννησης τυχαίων αριθμών από τη χρήση τους επιτρέπει στον simulator να κάνει parsing την τυχαία τιμή σε ένα 32-bit register πρώτα, να εκτελέσει τις αριθμητικές πράξεις, και μετά να περάσει μια "καθαρή" μεταβλητή στο task.
+
+\paragraph{2. Βαθμονόμηση Καθυστέρησης (Latency Calibration)}
+
+\textbf{Πρόβλημα:} Η εκφώνηση αναφέρει ότι το \texttt{nn\_model} είναι στιγμιαίο, αλλά το κύκλωμα έχει καθυστέρηση λόγω του FSM. Αν γίνει σύγκριση πολύ νωρίς ή πολύ αργά, το τεστ αποτυγχάνει ακόμα και αν το κύκλωμα λειτουργεί σωστά.
+
+\textbf{Λύση:} Μέσω debugging, βρέθηκε ότι τα έγκυρα δεδομένα εμφανίζονται ακριβώς \textbf{12 κύκλους} μετά τον παλμό enable:
+\begin{lstlisting}[style=verilog]
+// Μέσα στο task run_test:
+repeat(12) @(posedge clk);  // Αναμονή 12 κύκλων
+expected_val = nn_model(in1, in2);
+// Τώρα γίνεται η σύγκριση...
+\end{lstlisting}
+
+\textbf{Διδαγμα:} Η σωστή βαθμονόμηση του timing είναι κρίσιμη για testbenches. Η καθυστέρηση εξαρτάται από τον αριθμό καταστάσεων του FSM (8 καταστάσεις στην περίπτωσή μας).
+
+\paragraph{3. Διόρθωση Γέννησης Signed Τυχαίων Αριθμών}
+
+\textbf{Πρόβλημα:} Η εκφώνηση ζητά συγκεκριμένα signed εύρη (θετικό/αρνητικό overflow), αλλά η \texttt{\$urandom\_range} επιστρέφει unsigned integers.
+
+\textbf{Λύση:} Διαφορετική προσέγγιση για κάθε περίπτωση:
+\begin{itemize}
+    \item \textbf{Κανονικό εύρος:} Γεννάμε 0-8191 και αφαιρούμε 4096 $\rightarrow$ [-4096, 4095]
+    \item \textbf{Θετικό overflow:} Γεννάμε στο υψηλό θετικό εύρος και \textbf{εξαναγκάζουμε το MSB σε 0}:
+\begin{lstlisting}[style=verilog]
+temp_in1 = $signed({1'b0, raw_rand[30:0]}); // Force positive
+\end{lstlisting}
+    \item \textbf{Αρνητικό overflow:} Γεννάμε 30 bits και \textbf{εξαναγκάζουμε το MSB σε 1}:
+\begin{lstlisting}[style=verilog]
+temp_in1 = $signed({1'b1, raw_rand[30:0]}); // Force negative
+\end{lstlisting}
+\end{itemize}
+
+\textbf{Διδαγμα:} Δεν πρέπει να βασιζόμαστε σε implicit casting μεταξύ unsigned/signed, καθώς διαφορετικοί simulators μπορεί να συμπεριφέρονται διαφορετικά. Ο ρητός έλεγχος του sign bit εγγυάται τα σωστά 32-bit signed patterns.
+
+\paragraph{4. Συμμόρφωση με την Εκφώνηση}
+
+Για πλήρη συμμόρφωση με τις απαιτήσεις της άσκησης:
+\begin{itemize}
+    \item \textbf{Αναφορά σφαλμάτων:} Εκτύπωση χρονικής στιγμής, εισόδων, εξόδου κυκλώματος, και εξόδου αναφοράς σε περίπτωση λάθους
+    \item \textbf{Μέτρηση:} Μεταβλητές \texttt{pass\_count} και \texttt{test\_count} για την τελική αναφορά PASS/TOTAL
+    \item \textbf{Δομή βρόχου:} Αυστηρή υλοποίηση \texttt{for (iteration = 0; iteration < 100...)} με 3 sub-tests εντός
+\end{itemize}
+
 %==============================================================================
 \section{Κυματομορφές Προσομοίωσης}
 %==============================================================================
