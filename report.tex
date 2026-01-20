@@ -2,6 +2,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[greek, english]{babel} 
 \usepackage{alphabeta}
+\usepackage{lmodern}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{graphicx}
@@ -18,6 +19,7 @@
 \usepackage{subcaption}
 \usepackage{fancyhdr}
 \usepackage{lastpage}
+\usepackage{xurl} % Adds better line breaking for URLs
 
 \geometry{margin=2.5cm}
 
@@ -38,7 +40,7 @@
     {α}{{\textalpha}}1 {β}{{\textbeta}}1 {γ}{{\textgamma}}1 {δ}{{\textdelta}}1 {ε}{{\textepsilon}}1 {ζ}{{\textzeta}}1 {η}{{\texteta}}1 {θ}{{\texttheta}}1 {ι}{{\textiota}}1 {κ}{{\textkappa}}1 {λ}{{\textlambda}}1 {μ}{{\textmu}}1 {ν}{{\textnu}}1 {ξ}{{\textxi}}1 {ο}{{\textomicron}}1 {π}{{\textpi}}1 {ρ}{{\textrho}}1 {σ}{{\textsigma}}1 {ς}{{\textsigma}}1 {τ}{{\texttau}}1 {υ}{{\textupsilon}}1 {φ}{{\textphi}}1 {χ}{{\textchi}}1 {ψ}{{\textpsi}}1 {ω}{{\textomega}}1
     {ά}{{\'a}}1 {έ}{{\'e}}1 {ή}{{\'h}}1 {ί}{{\'i}}1 {ό}{{\'o}}1 {ύ}{{\'u}}1 {ώ}{{\'w}}1
 }
-
+% Improved Listings Configuration
 \lstdefinestyle{verilogstyle}{
     backgroundcolor=\color{backcolour},
     commentstyle=\color{codegreen},
@@ -46,15 +48,17 @@
     numberstyle=\tiny\color{codegray},
     stringstyle=\color{codepurple},
     basicstyle=\ttfamily\footnotesize,
-    breakatwhitespace=false,
-    breaklines=true,
-    captionpos=b,
-    keepspaces=true,
-    numbers=left,
-    numbersep=5pt,
-    showspaces=false,
+    breakatwhitespace=false,         
+    breaklines=true,                 % Break long lines
+    breakindent=10pt,                % Indent broken lines
+    postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space}, % Visual marker for breaks
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
     showstringspaces=false,
-    showtabs=false,
+    showtabs=false,                  
     tabsize=2,
     frame=single,
     language=Verilog
@@ -711,10 +715,10 @@ mac1_op3 = mac1_temp;  // No loop!
 
 \paragraph{1. Επίλυση Συντακτικού Λάθους \texttt{\$urandom\_range}}
 
-\textbf{Πρόβλημα:} Ο Icarus Verilog 12 εμφανίζει συντακτικά λάθη όταν χρησιμοποιούνται nested κλήσεις \texttt{\$urandom\_range} με αριθμητικές πράξεις και bit-slicing απευθείας μέσα σε κλήση task (π.χ. \texttt{run\_test(\$signed(\$urandom...))}).
+\textbf{Πρόβλημα:} Ο Icarus Verilog 12 εμφανίζει συντακτικά λάθη όταν χρησιμοποιούνται nested κλήσεις \texttt{\$urandom\_range} με αριθμητικές πράξεις και bit-slicing απευθείας μέσα σε κλήση task (π.χ. \texttt{run\_test (\$signed (\$urandom...))}). %tried to fix spacing
 
 \textbf{Λύση:} Εισήχθησαν \textbf{προσωρινές μεταβλητές} (\texttt{raw\_rand}, \texttt{temp\_in1}, \texttt{temp\_in2}):
-\begin{lstlisting}[style=verilog]
+\begin{lstlisting}[style=verilogstyle]
 reg [31:0] raw_rand;
 reg signed [31:0] temp_in1, temp_in2;
 
@@ -731,7 +735,7 @@ run_test(temp_in1, temp_in2, "Normal Range");
 \textbf{Πρόβλημα:} Η εκφώνηση αναφέρει ότι το \texttt{nn\_model} είναι στιγμιαίο, αλλά το κύκλωμα έχει καθυστέρηση λόγω του FSM. Αν γίνει σύγκριση πολύ νωρίς ή πολύ αργά, το τεστ αποτυγχάνει ακόμα και αν το κύκλωμα λειτουργεί σωστά.
 
 \textbf{Λύση:} Μέσω debugging, βρέθηκε ότι τα έγκυρα δεδομένα εμφανίζονται ακριβώς \textbf{12 κύκλους} μετά τον παλμό enable:
-\begin{lstlisting}[style=verilog]
+\begin{lstlisting}[style=verilogstyle]
 // Μέσα στο task run_test:
 repeat(12) @(posedge clk);  // Αναμονή 12 κύκλων
 expected_val = nn_model(in1, in2);
@@ -748,11 +752,11 @@ expected_val = nn_model(in1, in2);
 \begin{itemize}
     \item \textbf{Κανονικό εύρος:} Γεννάμε 0-8191 και αφαιρούμε 4096 $\rightarrow$ [-4096, 4095]
     \item \textbf{Θετικό overflow:} Γεννάμε στο υψηλό θετικό εύρος και \textbf{εξαναγκάζουμε το MSB σε 0}:
-\begin{lstlisting}[style=verilog]
+\begin{lstlisting}[style=verilogstyle]
 temp_in1 = $signed({1'b0, raw_rand[30:0]}); // Force positive
 \end{lstlisting}
     \item \textbf{Αρνητικό overflow:} Γεννάμε 30 bits και \textbf{εξαναγκάζουμε το MSB σε 1}:
-\begin{lstlisting}[style=verilog]
+\begin{lstlisting}[style=verilogstyle]
 temp_in1 = $signed({1'b1, raw_rand[30:0]}); // Force negative
 \end{lstlisting}
 \end{itemize}
@@ -895,9 +899,9 @@ temp_in1 = $signed({1'b1, raw_rand[30:0]}); // Force negative
 %==============================================================================
 
 \begin{enumerate}
-    \item ECEN 323: Computer Organization, BYU ECE. Διαθέσιμο: \url{https://ecen323wiki.groups.et.byu.net/}
+    \item Ψηφιακή Σχεδίαση, 6η Έκδοση, Morris Mano and Michael Ciletti
     \item IEEE Standard for Verilog Hardware Description Language (IEEE 1364-2005)
-    \item Playground EDA - Online Verilog Simulator
+    \item Playground EDA - Online Verilog Simulator \url{https://eda-playground.readthedocs.io/}
 \end{enumerate}
 
 %==============================================================================
