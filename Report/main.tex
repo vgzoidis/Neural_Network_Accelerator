@@ -1,0 +1,226 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[greek, english]{babel} 
+\usepackage{alphabeta}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{automata,positioning,arrows.meta,shapes.geometric}
+\usepackage{float}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{xurl}
+\usepackage{hyperref}
+\usepackage{ragged2e}
+
+\geometry{margin=2.5cm}
+\setlength{\headheight}{15pt} % Διόρθωση για το warning του fancyhdr
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    filecolor=magenta,      
+    urlcolor=blue,
+    pdftitle={Digital Systems Report},
+    pdfpagemode=FullScreen,
+}
+
+% Ρυθμίσεις για listings (κώδικας Verilog)
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+% Χαρτογράφηση ελληνικών χαρακτήρων για το listings
+\lstset{
+    inputencoding=utf8,
+    extendedchars=true,
+    literate={Α}{{\textAlpha}}1 {Β}{{\textBeta}}1 {Γ}{{\textGamma}}1 {Δ}{{\textDelta}}1 {Ε}{{\textEpsilon}}1 {Ζ}{{\textZeta}}1 {Η}{{\textEta}}1 {Θ}{{\textTheta}}1 {Ι}{{\textIota}}1 {Κ}{{\textKappa}}1 {Λ}{{\textLambda}}1 {Μ}{{\textMu}}1 {Ν}{{\textNu}}1 {Ξ}{{\textXi}}1 {Ο}{{\textOmicron}}1 {Π}{{\textPi}}1 {Ρ}{{\textRho}}1 {Σ}{{\textSigma}}1 {Τ}{{\textTau}}1 {Υ}{{\textUpsilon}}1 {Φ}{{\textPhi}}1 {Χ}{{\textChi}}1 {Ψ}{{\textPsi}}1 {Ω}{{\textOmega}}1
+    {α}{{\textalpha}}1 {β}{{\textbeta}}1 {γ}{{\textgamma}}1 {δ}{{\textdelta}}1 {ε}{{\textepsilon}}1 {ζ}{{\textzeta}}1 {η}{{\texteta}}1 {θ}{{\texttheta}}1 {ι}{{\textiota}}1 {κ}{{\textkappa}}1 {λ}{{\textlambda}}1 {μ}{{\textmu}}1 {ν}{{\textnu}}1 {ξ}{{\textxi}}1 {ο}{{\textomicron}}1 {π}{{\textpi}}1 {ρ}{{\textrho}}1 {σ}{{\textsigma}}1 {ς}{{\textsigma}}1 {τ}{{\texttau}}1 {υ}{{\textupsilon}}1 {φ}{{\textphi}}1 {χ}{{\textchi}}1 {ψ}{{\textpsi}}1 {ω}{{\textomega}}1
+    {ά}{{\'a}}1 {έ}{{\'e}}1 {ή}{{\'h}}1 {ί}{{\'i}}1 {ό}{{\'o}}1 {ύ}{{\'u}}1 {ώ}{{\'w}}1
+}
+
+% Improved Listings Configuration
+\lstdefinestyle{verilogstyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{blue}\bfseries,
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    breakindent=10pt,                
+    postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space}, 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    frame=single,
+    language=Verilog
+}
+
+\lstset{style=verilogstyle}
+
+% Header/Footer
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Ψηφιακά Συστήματα HW-1}
+\lhead{Εργαστηριακές Ασκήσεις}
+\rfoot{Σελίδα \thepage\ από \pageref{LastPage}}
+
+\title{
+    \vspace{5cm}
+    \textbf{Ψηφιακά Συστήματα HW σε Χαμηλά Επίπεδα Λογικής I}\\
+    \vspace{1cm}
+    \Large Αναφορά Εργαστηριακών Ασκήσεων
+    
+    Εξοικείωσης με τη Verilog\\
+    \vspace{10cm}
+}
+\author{
+    \textbf{Ζωίδης Βασίλειος}\\
+    ΑΕΜ: \textbf{10652}
+}
+\date{Ιανουάριος 2026}
+
+\begin{document}
+
+\maketitle
+\newpage
+\thispagestyle{fancy}
+
+\tableofcontents
+\newpage
+
+% Εισαγωγή - Introduction Section
+% 
+% Αυτή η ενότητα παρέχει μια επισκόπηση της αναφοράς που περιγράφει την υλοποίηση
+% τεσσάρων εργαστηριακών ασκήσεων σε Verilog για τη σχεδίαση ενός απλού AI accelerator.
+%
+% Περιεχόμενα:
+%   1. ALU 32-bit - Αριθμητική/Λογική Μονάδα
+%   2. Αριθμομηχανή βασισμένη στην ALU
+%   3. Register File με πολλαπλές θύρες I/O
+%   4. Νευρωνικό δίκτυο με Finite State Machine (FSM)
+%
+% Εργαλείο προσομοίωσης: Playground EDA
+%==============================================================================
+\section{Εισαγωγή}
+%==============================================================================
+\justify
+Η παρούσα αναφορά τεκμηριώνει την ολοκληρωμένη υλοποίηση τεσσάρων διαδοχικών εργαστηριακών ασκήσεων σε γλώσσα περιγραφής υλικού Verilog (Hardware Description Language - HDL), με τελικό στόχο τη σχεδίαση και την ανάπτυξη ενός απλού επιταχυντή τεχνητής νοημοσύνης (AI accelerator). Οι ασκήσεις έχουν σχεδιαστεί με προοδευτικό τρόπο, ώστε κάθε επόμενη άσκηση να βασίζεται και να επεκτείνει τη λειτουργικότητα των προηγούμενων, δημιουργώντας ένα ολοκληρωμένο σύστημα ψηφιακής επεξεργασίας.
+
+\subsection*{Δομή και Περιεχόμενο Ασκήσεων}
+
+Το έργο χωρίζεται σε τέσσερις βασικές ενότητες:
+
+\begin{enumerate}
+    \item \textbf{Αριθμητική/Λογική Μονάδα (ALU) 32-bit:} Σχεδίαση μιας πλήρους ALU που υποστηρίζει 12 διαφορετικές λειτουργίες (αριθμητικές, λογικές, και ολισθήσεις), με ενσωματωμένο μηχανισμό ανίχνευσης υπερχείλισης. Η ALU αποτελεί τον θεμελιώδη δομικό λίθο για τις επόμενες ασκήσεις.
+    
+    \item \textbf{Αριθμομηχανή βασισμένη στην ALU:} Υλοποίηση ενός λειτουργικού συστήματος αριθμομηχανής που αξιοποιεί την ALU της πρώτης άσκησης. Περιλαμβάνει structural encoder για την κωδικοποίηση των εισόδων ελέγχου, καθώς και ολοκληρωμένο testbench για επαλήθευση της ορθής λειτουργίας.
+    
+    \item \textbf{Register File με Πολλαπλές Θύρες I/O:} Δημιουργία ενός καταχωρητή 16×32-bit με δυνατότητα σύγχρονης ανάγνωσης και εγγραφής μέσω πολλαπλών θυρών. Υλοποιήθηκε με τεχνική data forwarding για την αποφυγή data hazards και τη βελτίωση της απόδοσης.
+    
+    \item \textbf{Νευρωνικό Δίκτυο με Finite State Machine (FSM):} Σχεδίαση ενός πλήρους συστήματος νευρωνικού δικτύου που ενσωματώνει όλα τα προηγούμενα modules. Υλοποιήθηκε με Moore FSM για καθαρό συγχρονισμό, περιλαμβάνει Multiply-Accumulate Unit (MAC) για αποδοτικούς υπολογισμούς, και διαχειρίζεται το Register File με τεχνική pre-fetching για την αντιμετώπιση της σύγχρονης ανάγνωσης.
+\end{enumerate}
+
+\subsection*{Μεθοδολογία και Εργαλεία}
+
+Η ανάπτυξη και προσομοίωση όλων των modules πραγματοποιήθηκε στην πλατφόρμα \textbf{EDA Playground} με χρήση του προσομοιωτή \textbf{Icarus Verilog 12.0}. Για την οπτικοποίηση και ανάλυση των κυματομορφών χρησιμοποιήθηκε το ενσωματωμένο εργαλείο \textbf{EPWave}, το οποίο επέτρεψε την αναλυτική επαλήθευση της χρονικής συμπεριφοράς των σημάτων. Κάθε άσκηση συνοδεύεται από εκτενή testbenches που επαληθεύουν τη σωστή λειτουργία σε διάφορα σενάρια εισόδου. Η σχεδίαση ακολουθεί τις βέλτιστες πρακτικές RTL (Register Transfer Level) design και συμμορφώνεται με το πρότυπο IEEE 1364-2005 για τη γλώσσα Verilog.
+
+\subsection*{Στόχοι και Μαθησιακά Αποτελέσματα}
+
+Μέσω αυτών των ασκήσεων επιτυγχάνεται:
+\begin{itemize}
+    \item Εμβάθυνση στη σχεδίαση ψηφιακών συστημάτων με HDL
+    \item Κατανόηση της ιεραρχικής δομής σύνθετων ψηφιακών κυκλωμάτων
+    \item Εξοικείωση με τεχνικές συγχρονισμού και state machine design
+    \item Πρακτική εφαρμογή αρχών computer architecture σε επίπεδο υλικού
+    \item Ανάπτυξη δεξιοτήτων debugging και verification ψηφιακών συστημάτων
+\end{itemize}
+
+Η παρούσα αναφορά παρουσιάζει αναλυτικά τη σχεδίαση, την υλοποίηση, και την επαλήθευση κάθε module, καθώς και τις κρίσιμες σχεδιαστικές αποφάσεις που ελήφθησαν κατά τη διάρκεια της ανάπτυξης.
+
+%==============================================================================
+% Εισαγωγή των αρχείων των ασκήσεων
+%==============================================================================
+
+\input{exercise_1.tex}
+
+\input{exercise_2.tex}
+
+\input{exercise_3.tex}
+
+\input{exercise_4.tex}
+
+%==============================================================================
+\section{Συμπεράσματα}
+%==============================================================================
+
+Η εργασία ολοκληρώθηκε επιτυχώς με τα ακόλουθα αποτελέσματα:
+
+\begin{enumerate}
+    \item \textbf{ALU (alu.v):} Υλοποιήθηκε 32-bit ALU με 12 λειτουργίες και ανίχνευση υπερχείλισης
+    \item \textbf{Αριθμομηχανή (calc.v, calc\_enc.v):} Λειτουργική αριθμομηχανή με structural encoder βασισμένο στα σχήματα της εκφώνησης
+    \item \textbf{Register File (regfile.v):} 16×32-bit με σύγχρονη ανάγνωση (ένα always block) και data forwarding
+    \item \textbf{Νευρωνικό (mac\_unit.v, nn.v):} \textbf{Moore FSM} για ασφάλεια και συγχρονισμό, τεχνική pre-fetching για το Register File, και χειρισμό overflow
+\end{enumerate}
+
+\textbf{Βασικές Σχεδιαστικές Αποφάσεις:}
+\begin{itemize}
+    \item Επιλογή \textbf{Moore FSM} αντί Mealy για καθαρό συγχρονισμό και αποφυγή glitches
+    \item Υλοποίηση \textbf{σύγχρονης ανάγνωσης} στο Register File όπως ζητούσε η εκφώνηση, με τεχνική pre-fetching στο FSM
+    \item Διαχωρισμός του output layer σε 2 καταστάσεις (S5a, S5b) για αποφυγή combinatorial loop
+    \item Προσαρμογή της τιμής overflow σε \texttt{0xFFFFFFFF} για συμβατότητα με το \texttt{nn\_model.v}
+\end{itemize}
+
+Τα testbenches επιβεβαίωσαν την ορθή λειτουργία όλων των κυκλωμάτων. Η προσομοίωση πραγματοποιήθηκε στο EDA Playground με Icarus Verilog 12.
+
+%==============================================================================
+\section{Αναφορές}
+%==============================================================================
+
+\begin{enumerate}
+    \item Ψηφιακή Σχεδίαση, 6η Έκδοση, Morris Mano and Michael Ciletti
+    \item IEEE Standard for Verilog Hardware Description Language (IEEE 1364-2005)
+    \item Playground EDA - Online Verilog Simulator: \url{https://eda-playground.readthedocs.io}
+\end{enumerate}
+
+%==============================================================================
+\section*{Παράρτημα: Λίστα Αρχείων}
+%==============================================================================
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Αρχείο} & \textbf{Περιγραφή} \\
+\hline
+alu.v & Αριθμητική/Λογική Μονάδα 32-bit \\
+calc.v & Module αριθμομηχανής \\
+calc\_enc.v & Encoder για alu\_op (structural) \\
+calc\_tb.v & Testbench αριθμομηχανής \\
+regfile.v & Register File 16×32-bit \\
+mac\_unit.v & Multiply-Accumulate Unit \\
+nn.v & Νευρωνικό δίκτυο με FSM \\
+tb\_nn.v & Testbench νευρωνικού \\
+\hline
+\end{tabular}
+\caption{Λίστα αρχείων εργασίας}
+\end{table}
+
+\end{document}

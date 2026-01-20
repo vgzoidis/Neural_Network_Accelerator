@@ -1,0 +1,76 @@
+%==============================================================================
+\section{Άσκηση 3: Register File}
+%==============================================================================
+
+\subsection{Περιγραφή}
+
+Το Register File υλοποιεί:
+\begin{itemize}
+    \item 16 καταχωρητές × 32 bits (παραμετροποιήσιμο DATAWIDTH)
+    \item 4 θύρες ανάγνωσης (readData1-4)
+    \item 2 θύρες εγγραφής (writeData1-2)
+    \item Ασύγχρονο reset (active low)
+    \item Data forwarding για αποφυγή hazards
+\end{itemize}
+
+\subsection{Data Forwarding}
+
+Σε περίπτωση που η διεύθυνση ανάγνωσης ταυτίζεται με διεύθυνση εγγραφής και το \texttt{write} είναι ενεργό, επιστρέφονται απευθείας τα νέα δεδομένα (write-first behavior):
+
+\begin{lstlisting}[caption=Data Forwarding με προτεραιότητα εγγραφής]
+if (write) begin
+    // Εγγραφή δεδομένων
+    registers[writeReg1] <= writeData1;
+    registers[writeReg2] <= writeData2;
+    
+    // Forwarding: προτεραιότητα στο writeData
+    if (readReg1 == writeReg1)      readData1 <= writeData1;
+    else if (readReg1 == writeReg2) readData1 <= writeData2;
+    else                            readData1 <= registers[readReg1];
+    // ... ομοίως για ports 2, 3, 4
+end
+else begin
+    // Μόνο ανάγνωση
+    readData1 <= registers[readReg1];
+    // ...
+end
+\end{lstlisting}
+
+\subsection{Σχεδιαστικές Αποφάσεις - Σύγχρονη Ανάγνωση}
+
+Σύμφωνα με την εκφώνηση, το Register File υλοποιεί \textbf{σύγχρονη ανάγνωση} μέσα σε ένα always block:
+
+\begin{itemize}
+    \item \textbf{Απαίτηση εκφώνησης:} ``Μέσω ενός always block, θα γίνεται η εγγραφή ή ανάγνωση''
+    \item \textbf{Αμοιβαίος αποκλεισμός:} ``θεωρούμε ότι δεν μπορούμε να πραγματοποιήσουμε ταυτόχρονα και ανάγνωση και εγγραφή''
+    \item \textbf{Registered outputs:} Τα \texttt{readData} ενημερώνονται στο \texttt{posedge clk}
+    \item \textbf{Επίπτωση στο FSM:} Τα δεδομένα είναι διαθέσιμα στον \textbf{επόμενο} κύκλο
+\end{itemize}
+
+\subsubsection{Συμβατότητα με το Νευρωνικό Δίκτυο - Τεχνική Pre-fetching}
+
+\textbf{Απαίτηση της εκφώνησης:} Το Register File υλοποιήθηκε με \textbf{σύγχρονη ανάγνωση} (ένα always block για εγγραφή ή ανάγνωση), σύμφωνα με τις οδηγίες:
+\begin{quote}
+\textit{``Μέσω ενός always block, θα γίνεται η εγγραφή ή ανάγνωση''}
+\end{quote}
+
+Αυτή η σχεδιαστική επιλογή σημαίνει ότι τα δεδομένα εμφανίζονται στις εξόδους \texttt{readData} \textbf{έναν κύκλο μετά} τον ορισμό της διεύθυνσης \texttt{readReg}.
+
+\textbf{Τεχνική Pre-fetching:} Για να αντιμετωπιστεί αυτή η καθυστέρηση, το FSM του \texttt{nn.v} εφαρμόζει τεχνική \textbf{pre-fetching διευθύνσεων}: οι διευθύνσεις τίθενται \textbf{ένα κύκλο νωρίτερα} από ότι χρειάζονται τα δεδομένα.
+
+\begin{table}[H]
+\centering
+\caption{Pre-fetching διευθύνσεων RegFile στο FSM}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Τρέχουσα Κατάσταση} & \textbf{Διευθύνσεις που θέτουμε (pre-fetch)} & \textbf{Δεδομένα διαθέσιμα στην} \\
+\hline
+S\_IDLE / S\_DEACTIVATED & shift\_bias\_1, shift\_bias\_2 & S\_PREPROCESS \\
+S\_PREPROCESS & weight\_1, bias\_1, weight\_2, bias\_2 & S\_INPUT\_LAYER \\
+S\_INPUT\_LAYER & weight\_3, weight\_4, bias\_3 & S\_OUTPUT\_LAYER1 \\
+S\_OUTPUT\_LAYER1 & shift\_bias\_3 & S\_POSTPROCESS \\
+\hline
+\end{tabular}
+\end{table}
+
+Αυτή η τεχνική ``read-ahead'' εξασφαλίζει ότι τα δεδομένα είναι έτοιμα όταν τα χρειάζεται η ALU/MAC, χωρίς να χρειάζονται επιπλέον κύκλοι αναμονής.
