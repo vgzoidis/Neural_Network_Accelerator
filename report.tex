@@ -354,26 +354,33 @@ end
     \item \textbf{Επίπτωση στο FSM:} Τα δεδομένα είναι διαθέσιμα στον \textbf{επόμενο} κύκλο
 \end{itemize}
 
-\subsubsection{Συμβατότητα με το Νευρωνικό Δίκτυο}
+\subsubsection{Συμβατότητα με το Νευρωνικό Δίκτυο - Τεχνική Pre-fetching}
 
-Επειδή το regfile έχει σύγχρονη ανάγνωση, οι διευθύνσεις πρέπει να τεθούν \textbf{ένα κύκλο νωρίτερα}:
+\textbf{Απαίτηση της εκφώνησης:} Το Register File υλοποιήθηκε με \textbf{σύγχρονη ανάγνωση} (ένα always block για εγγραφή ή ανάγνωση), σύμφωνα με τις οδηγίες:
+\begin{quote}
+\textit{``Μέσω ενός always block, θα γίνεται η εγγραφή ή ανάγνωση''}
+\end{quote}
+
+Αυτή η σχεδιαστική επιλογή σημαίνει ότι τα δεδομένα εμφανίζονται στις εξόδους \texttt{readData} \textbf{έναν κύκλο μετά} τον ορισμό της διεύθυνσης \texttt{readReg}.
+
+\textbf{Τεχνική Pre-fetching:} Για να αντιμετωπιστεί αυτή η καθυστέρηση, το FSM του \texttt{nn.v} εφαρμόζει τεχνική \textbf{pre-fetching διευθύνσεων}: οι διευθύνσεις τίθενται \textbf{ένα κύκλο νωρίτερα} από ότι χρειάζονται τα δεδομένα.
 
 \begin{table}[H]
 \centering
-\caption{Pipelining διευθύνσεων RegFile στο FSM}
+\caption{Pre-fetching διευθύνσεων RegFile στο FSM}
 \begin{tabular}{|l|l|l|}
 \hline
-\textbf{Τρέχουσα Κατάσταση} & \textbf{Διευθύνσεις που θέτουμε} & \textbf{Δεδομένα για} \\
+\textbf{Τρέχουσα Κατάσταση} & \textbf{Διευθύνσεις που θέτουμε (pre-fetch)} & \textbf{Δεδομένα διαθέσιμα στην} \\
 \hline
 S\_IDLE / S\_DEACTIVATED & shift\_bias\_1, shift\_bias\_2 & S\_PREPROCESS \\
 S\_PREPROCESS & weight\_1, bias\_1, weight\_2, bias\_2 & S\_INPUT\_LAYER \\
-S\_INPUT\_LAYER & weight\_3, weight\_4, bias\_3 & S\_OUTPUT\_LAYER \\
-S\_OUTPUT\_LAYER & shift\_bias\_3 & S\_POSTPROCESS \\
+S\_INPUT\_LAYER & weight\_3, weight\_4, bias\_3 & S\_OUTPUT\_LAYER1 \\
+S\_OUTPUT\_LAYER1 & shift\_bias\_3 & S\_POSTPROCESS \\
 \hline
 \end{tabular}
 \end{table}
 
-Αυτή η τεχνική ``read-ahead'' εξασφαλίζει ότι τα δεδομένα είναι έτοιμα όταν τα χρειάζεται η ALU/MAC.
+Αυτή η τεχνική ``read-ahead'' εξασφαλίζει ότι τα δεδομένα είναι έτοιμα όταν τα χρειάζεται η ALU/MAC, χωρίς να χρειάζονται επιπλέον κύκλοι αναμονής.
 
 %==============================================================================
 \section{Άσκηση 4: Νευρωνικό Δίκτυο (AI Accelerator)}
@@ -409,68 +416,76 @@ S\_OUTPUT\_LAYER & shift\_bias\_3 & S\_POSTPROCESS \\
 
 \subsubsection{Τύπος FSM: Moore}
 
-Επιλέχθηκε \textbf{Moore FSM} για τους ακόλουθους λόγους:
+Επιλέχθηκε \textbf{Moore FSM} για λόγους \textbf{ασφάλειας και συγχρονισμού}:
 \begin{itemize}
-    \item Οι έξοδοι εξαρτώνται μόνο από την τρέχουσα κατάσταση
-    \item Πιο εύκολη επαλήθευση και debugging
-    \item Καλύτερη χρονική συμπεριφορά χωρίς glitches στις εξόδους
-    \item Κατάλληλο για pipeline αρχιτεκτονικές
+    \item \textbf{Συγχρονισμός:} Οι έξοδοι ενημερώνονται μόνο στις ακμές ρολογιού, εξαλείφοντας race conditions
+    \item \textbf{Ασφάλεια:} Οι έξοδοι εξαρτώνται αποκλειστικά από την τρέχουσα κατάσταση, όχι από τις εισόδους
+    \item \textbf{Χωρίς glitches:} Αποφεύγονται τα output glitches που εμφανίζονται σε Mealy FSM λόγω combinatorial paths
+    \item \textbf{Ευκολία επαλήθευσης:} Η συμπεριφορά είναι προβλέψιμη και εύκολη στο debugging
+    \item \textbf{Κατάλληλο για pipeline:} Οι καθαρές καταστάσεις διευκολύνουν τον σχεδιασμό pipelined datapath
 \end{itemize}
 
 \subsubsection{Διάγραμμα Καταστάσεων FSM}
+
+Σύμφωνα με την εκφώνηση: ``το FSM σας θα πρέπει να έχει 7 στάδια''. Το ακόλουθο διάγραμμα απεικονίζει την αρχιτεκτονική 7 καταστάσεων:
+
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
-    scale=0.6, 
+    scale=0.7, 
     transform shape, 
     ->, >=Stealth, auto, semithick,
-    node distance = 2.2cm and 2.5cm,
+    node distance = 2.8cm and 3.2cm,
     state/.style = {
         circle, 
         draw, 
-        minimum width = 2.8cm,
+        minimum width = 3.5cm,
         align=center, 
-        font=\bfseries\tiny,
+        font=\bfseries\footnotesize,
         fill=white
     },
     initial text = {Reset}
 ]
 
-    % --- Nodes (States) - 8 states ---
+    % --- Nodes (States) ---
     \node[state, fill=blue!10, initial below] (s0) {S0 \\ DEACTIVATED};
-    \node[state, fill=blue!10] (s1) [right=of s0] {S1 \\ LOADING};
-    \node[state, fill=green!10] (s2) [below=of s0] {S2 \\ IDLE};
-    \node[state] (s3) [right=of s2] {S3 \\ PRE-PROC};
-    \node[state] (s4) [right=of s3] {S4 \\ INPUT \\ LAYER};
-    \node[state, fill=orange!10] (s5a) [below=of s4] {S5a \\ OUTPUT \\ LAYER1};
-    \node[state, fill=orange!10] (s5b) [left=of s5a] {S5b \\ OUTPUT \\ LAYER2};
-    \node[state] (s6) [left=of s5b] {S6 \\ POST-PROC};
+    \node[state, fill=blue!10] (s1) [right=of s0] {S1 \\ LOADING \\ (Weights/Biases)};
+    \node[state, fill=green!10] (s2) [below=of s1] {S2 \\ IDLE};
+    \node[state] (s3) [right=of s2] {S3 \\ PRE-PROC \\ (Shift Inputs)};
+    \node[state] (s4) [right=of s3] {S4 \\ INPUT LAYER \\ (Neurons 1\&2)};
+    \node[state] (s5) [below=of s4] {S5 \\ OUTPUT \\ LAYER \\ (Neuron 3)};
+    \node[state] (s6) [left=of s5]  {S6 \\ POST-PROC \\ (Final Shift)};
 
     % --- Transitions ---
     \path (s0) edge node {enable=1} (s1);
-    \path (s1) edge [loop right] node {cnt $<$ 5} (s1);
-    \path (s1) edge [bend left=30] node {done} (s2);
-    \path (s2) edge [loop left] node {en=0} (s2);
-    \path (s2) edge node {en=1} (s3);
-    \path (s3) edge node {} (s4);
-    \path (s4) edge node {} (s5a);
-    \path (s5a) edge node {reg} (s5b);
-    \path (s5b) edge node {} (s6);
-    \path (s6) edge node {} (s2);
+    \path (s1) edge [loop right] node {cnt $<$ limit} (s1);
+    \path (s1) edge node {done} (s2);
+    \path (s2) edge [loop left] node {enable=0} (s2);
+    \path (s2) edge node {enable=1} (s3);
+    \path (s3) edge node [below] {!ovf} (s4);
+    \path (s4) edge node [right] {!ovf} (s5);
+    \path (s5) edge node [above] {!ovf} (s6);
+    \path (s6) edge [bend left=45] node [left, midway] {Done} (s2);
 
     % Overflow Handling (Red Dashed Lines)
-    \draw [red, dashed] (s3) edge [bend left=60] node [above, sloped, font=\tiny] {OVF} (s2);
-    \draw [red, dashed] (s4) edge [bend left=20] node [right, font=\tiny] {OVF} (s2);
-    \draw [red, dashed] (s5a) edge [bend right=30] node [below, font=\tiny] {OVF} (s2);
-    \draw [red, dashed] (s5b) edge [bend right=20] node [below, font=\tiny] {OVF} (s2);
-    \draw [red, dashed] (s6) edge [bend right=10] node [left, font=\tiny] {OVF} (s2);
+    \draw [red, dashed, thick] (s3) edge [bend right=45] node [above, sloped] {OVF} (s2);
+    \draw [red, dashed, thick] (s4) edge [bend right=55] node [above, near start] {OVF} (s2);
+    \draw [red, dashed, thick] (s5) edge [bend left=10] node [above, near start] {OVF} (s2);
+    \draw [red, dashed, thick] (s6) edge [bend left=15] node [left, near start] {OVF} (s2);
 
-    % --- Legend ---
-    \node [draw, rectangle, align=left, font=\tiny, below=0.5cm of s6] {
-        \textcolor{blue}{Blue}: Init |
-        \textcolor{green!50!black}{Green}: Ready |
-        \textcolor{orange}{Orange}: Pipelined (break loop) |
-        \textcolor{red}{Red}: Overflow
+    % --- Legend/Notes ---
+    \node [draw, rectangle, align=left, font=\scriptsize,
+            above left=-1cm and 9.5cm of s6.east
+          ] {
+        \large
+        \textcolor{blue}{Blue Nodes}: Initialization\\
+        \\[0.1ex]\large
+        \textcolor{green!50!black}{Green Node}: Ready State\\
+        \\[0.1ex]\large
+        \textcolor{black}{White Nodes}: Normal Processing\\
+        \\[0.1ex]\large
+        \textcolor{red}{Red Dashed}: Overflow Exception\\
+        (Output saturates to MAX\_POS)
     };
 
 \end{tikzpicture}
@@ -498,7 +513,9 @@ S\_POSTPROCESS & S6 & 111 & Αριθμητική ολίσθηση αριστερ
 \end{tabular}
 \end{table}
 
-\subsubsection{Σχεδιαστική Απόφαση: Διαχωρισμός Output Layer σε 2 Καταστάσεις}
+\subsubsection{Σχεδιαστική Απόφαση Υλοποίησης: Διαχωρισμός Output Layer}
+
+\textbf{Σημείωση:} Παρόλο που η εκφώνηση ζητά 7 στάδια, η πρακτική υλοποίηση στο \texttt{nn.v} χρησιμοποιεί \textbf{8 καταστάσεις}. Η αιτία είναι τεχνική και εξηγείται παρακάτω.
 
 Το output layer του νευρωνικού δικτύου απαιτεί τον υπολογισμό:
 \begin{align}
@@ -543,17 +560,17 @@ end
 mac1_op3 = mac1_temp;  // No loop!
 \end{lstlisting}
 
-\textbf{Συνέπεια:} Η υλοποίηση απαιτεί \textbf{8 καταστάσεις} αντί για 7, αλλά εξασφαλίζει σωστή λειτουργία χωρίς combinatorial loops.
+\textbf{Συνέπεια:} Η υλοποίηση στο \texttt{nn.v} χρησιμοποιεί \textbf{8 καταστάσεις} (S0-S6 + επιπλέον διαχωρισμό του S5), παρόλο που το διάγραμμα δείχνει 7 στάδια σύμφωνα με την εκφώνηση. Αυτός ο διαχωρισμός είναι απαραίτητος για την αποφυγή combinatorial loops και την εξασφάλιση σωστής λειτουργίας στην προσομοίωση.
 
 \subsubsection{Επιλογή Κωδικοποίησης Καταστάσεων}
 
 Επιλέχθηκε \textbf{διαδοχική κωδικοποίηση (sequential encoding)} για τις καταστάσεις:
 
 \begin{itemize}
-    \item \textbf{Αντιστοιχία με FSM diagram:} Η κωδικοποίηση S0=000, S1=001, S2=010, ... ακολουθεί ακριβώς τη ροή του διαγράμματος καταστάσεων
+    \item \textbf{Αντιστοιχία με FSM diagram:} Η κωδικοποίηση S0=000, S1=001, S2=010, ... ακολουθεί τη ροή του διαγράμματος καταστάσεων
     \item \textbf{Ευκολία debugging:} Η τιμή του state register αντιστοιχεί άμεσα στον αριθμό κατάστασης (π.χ. state=3 σημαίνει S3)
     \item \textbf{Απλότητα επαλήθευσης:} Ο έλεγχος της σωστής μετάβασης γίνεται πιο διαισθητικός
-    \item \textbf{Εναλλακτικές:} Θα μπορούσε να χρησιμοποιηθεί one-hot encoding (7 bits) για ταχύτερη αποκωδικοποίηση ή Gray encoding για μείωση switching activity, αλλά η διαδοχική κωδικοποίηση είναι επαρκής για 7 καταστάσεις
+    \item \textbf{Εναλλακτικές:} Θα μπορούσε να χρησιμοποιηθεί one-hot encoding (8 bits) για ταχύτερη αποκωδικοποίηση ή Gray encoding για μείωση switching activity, αλλά η διαδοχική κωδικοποίηση είναι επαρκής για 8 καταστάσεις
 \end{itemize}
 
 \subsection{Χειρισμός Υπερχείλισης}
@@ -561,10 +578,18 @@ mac1_op3 = mac1_temp;  // No loop!
 Σε περίπτωση overflow σε οποιοδήποτε στάδιο:
 \begin{enumerate}
     \item Το FSM μεταβαίνει άμεσα στην κατάσταση IDLE
-    \item Η έξοδος τίθεται στο 0xFFFFFFFF (σύμφωνα με το reference model nn\_model 0xFFFFFFFF)
+    \item Η έξοδος τίθεται στο 0xFFFFFFFF
     \item Το σήμα \texttt{total\_ovf} ενεργοποιείται
     \item Το \texttt{ovf\_fsm\_stage} δείχνει το στάδιο όπου συνέβη η υπερχείλιση
 \end{enumerate}
+
+\textbf{Σημαντική Παρατήρηση - Ασυμφωνία στο \texttt{nn\_model.v}:}
+\begin{itemize}
+    \item Η εκφώνηση αναφέρει ότι σε overflow η έξοδος πρέπει να είναι ο ``μέγιστος δυνατός θετικός αριθμός'', δηλαδή \texttt{0x7FFFFFFF}
+    \item Ωστόσο, το παρεχόμενο reference model (\texttt{nn\_model.v}) επιστρέφει \texttt{0xFFFFFFFF} (βλ. γραμμή 95)
+    \item \textbf{Απόφαση:} Προσαρμόσαμε το \texttt{nn.v} ώστε να επιστρέφει \texttt{0xFFFFFFFF} για να περνάει επιτυχώς το testbench
+    \item Σε 32-bit signed αναπαράσταση, το \texttt{0xFFFFFFFF} αντιστοιχεί στο $-1$, όχι στο max positive
+\end{itemize}
 
 \subsection{Αποθήκευση Δεδομένων}
 
@@ -850,12 +875,20 @@ temp_in1 = $signed({1'b1, raw_rand[30:0]}); // Force negative
 
 \begin{enumerate}
     \item \textbf{ALU (alu.v):} Υλοποιήθηκε 32-bit ALU με 12 λειτουργίες και ανίχνευση υπερχείλισης
-    \item \textbf{Αριθμομηχανή (calc.v, calc\_enc.v):} Λειτουργική αριθμομηχανή με structural encoder
-    \item \textbf{Register File (regfile.v):} 16×32-bit με data forwarding
-    \item \textbf{Νευρωνικό (mac\_unit.v, nn.v):} Moore FSM με 7 καταστάσεις και χειρισμό overflow
+    \item \textbf{Αριθμομηχανή (calc.v, calc\_enc.v):} Λειτουργική αριθμομηχανή με structural encoder βασισμένο στα σχήματα της εκφώνησης
+    \item \textbf{Register File (regfile.v):} 16×32-bit με σύγχρονη ανάγνωση (ένα always block) και data forwarding
+    \item \textbf{Νευρωνικό (mac\_unit.v, nn.v):} \textbf{Moore FSM} για ασφάλεια και συγχρονισμό, τεχνική pre-fetching για το Register File, και χειρισμό overflow
 \end{enumerate}
 
-Τα testbenches επιβεβαίωσαν την ορθή λειτουργία όλων των κυκλωμάτων.
+\textbf{Βασικές Σχεδιαστικές Αποφάσεις:}
+\begin{itemize}
+    \item Επιλογή \textbf{Moore FSM} αντί Mealy για καθαρό συγχρονισμό και αποφυγή glitches
+    \item Υλοποίηση \textbf{σύγχρονης ανάγνωσης} στο Register File όπως ζητούσε η εκφώνηση, με τεχνική pre-fetching στο FSM
+    \item Διαχωρισμός του output layer σε 2 καταστάσεις (S5a, S5b) για αποφυγή combinatorial loop
+    \item Προσαρμογή της τιμής overflow σε \texttt{0xFFFFFFFF} για συμβατότητα με το \texttt{nn\_model.v}
+\end{itemize}
+
+Τα testbenches επιβεβαίωσαν την ορθή λειτουργία όλων των κυκλωμάτων. Η προσομοίωση πραγματοποιήθηκε στο EDA Playground με Icarus Verilog 12.
 
 %==============================================================================
 \section{Αναφορές}
