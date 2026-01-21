@@ -1,42 +1,43 @@
-%==============================================================================
-\section{Άσκηση 4: Νευρωνικό Δίκτυο (AI Accelerator)}
-%==============================================================================
+%=======================================================================
+\section{Άσκηση 4: Νευρωνικό Δίκτυο}
+%=======================================================================
 
 \subsection{Περιγραφή}
 
-Σε αυτή την άσκηση υλοποιήθηκε ένας AI Accelerator που εκτελεί ένα απλό νευρωνικό δίκτυο 3 νευρώνων. Το σύστημα ενσωματώνει όλα τα modules των προηγούμενων ασκήσεων:
+Σε αυτή την άσκηση υλοποιήθηκε ένας AI Accelerator που εκτελεί ένα απλό νευρωνικό δίκτυο 3 νευρώνων. Το σύστημα ενσωματώνει modules προηγούμενων ασκήσεων, αλλά και νέα modules:
 \begin{itemize}
-    \item \textbf{ALU} (Άσκηση 1): Για αριθμητικές ολισθήσεις (SRA/SLA)
-    \item \textbf{Register File} (Άσκηση 3): Για αποθήκευση βαρών και πολώσεων
-    \item \textbf{MAC Unit} (νέο): Για υπολογισμό νευρώνων (Multiply-Accumulate)
-    \item \textbf{ROM}: Για αρχική φόρτωση παραμέτρων
+    \item \textbf{ALU} (Άσκηση 1): Για τις πράξεις ολίσθησης (preprocessing/postprocessing).
+    \item \textbf{Register File} (Άσκηση 3): Για την αποθήκευση βαρών και πολώσεων.
+    \item \textbf{MAC Unit}: Για την εκτέλεση των Multiply / Accumulate σου νευρώνες.
+    \item \textbf{ROM}: Για την αρχική φόρτωση των παραμέτρων στο Register File.
 \end{itemize}
 
-\subsubsection{Θύρες Εισόδου/Εξόδου}
+\subsection{Αρχιτεκτονική}
+Το module \texttt{nn} υλοποιήθηκε ως ακολουθιακό κύκλωμα ελεγχόμενο από FSM, με τις ακόλουθες θύρες:
 
 \begin{table}[H]
 \centering
 \caption{Θύρες του module nn}
-\begin{tabular}{|l|c|c|p{6.5cm}|}
+\begin{tabular}{|l|c|c|p{6cm}|}
 \hline
 \textbf{Θύρα} & \textbf{Κατεύθυνση} & \textbf{Πλάτος} & \textbf{Περιγραφή} \\
 \hline
 \texttt{clk} & Είσοδος & 1 & Σήμα ρολογιού \\
 \texttt{resetn} & Είσοδος & 1 & Σήμα επαναφοράς (active low) \\
 \texttt{enable} & Είσοδος & 1 & Σήμα ενεργοποίησης \\
-\texttt{input\_1} & Είσοδος & 32 & Πρώτη είσοδος (2's complement) \\
-\texttt{input\_2} & Είσοδος & 32 & Δεύτερη είσοδος (2's complement) \\
+\texttt{input\_1} & Είσοδος & 32 & Πρώτη είσοδος \\
+\texttt{input\_2} & Είσοδος & 32 & Δεύτερη είσοδος \\
 \hdashline
-\texttt{final\_output} & Έξοδος & 32 & Τελικό αποτέλεσμα \\
 \texttt{total\_ovf} & Έξοδος & 1 & Ένδειξη υπερχείλισης \\
 \texttt{total\_zero} & Έξοδος & 1 & Ένδειξη μηδενικού αποτελέσματος \\
-\texttt{ovf\_fsm\_stage} & Έξοδος & 3 & Στάδιο υπερχείλισης (111 αν καμία) \\
-\texttt{zero\_fsm\_stage} & Έξοδος & 3 & Στάδιο μηδενισμού (111 αν κανένα) \\
+\texttt{ovf\_fsm\_stage} & Έξοδος & 3 & Στάδιο υπερχείλισης \\
+\texttt{zero\_fsm\_stage} & Έξοδος & 3 & Στάδιο μηδενισμού  \\
+\texttt{final\_output} & Έξοδος & 32 & Τελικό αποτέλεσμα \\
 \hline
 \end{tabular}
 \end{table}
 
-\subsection{Αρχιτεκτονική Νευρωνικού}
+\subsubsection{Αρχιτεκτονική Νευρωνικού}
 
 Το νευρωνικό δίκτυο αποτελείται από 3 νευρώνες και υλοποιεί την ακόλουθη λογική:
 
@@ -49,13 +50,13 @@
 \text{output} &= \text{inter}_5 <<< \text{shift\_bias}_3
 \end{align}
 
-\subsection{MAC Unit}
+\subsubsection{MAC Unit}
 
 Η μονάδα MAC (Multiply and Accumulate) υλοποιεί:
 \[
 \text{result} = (\text{op1} \times \text{op2}) + \text{op3}
 \]
-
+\justify
 Αποτελείται από δύο σειριακά συνδεδεμένες ALU:
 \begin{enumerate}
     \item Πρώτη ALU: Πολλαπλασιασμός (op1 × op2)
@@ -64,20 +65,17 @@
 
 \subsection{Finite State Machine (FSM)}
 
-\subsubsection{Τύπος FSM: Moore}
+\subsubsection{Τύπος FSM: Registered Mealy}
 
-Επιλέχθηκε \textbf{Moore FSM} για λόγους \textbf{ασφάλειας και συγχρονισμού}:
+Επιλέχθηκε \textbf{Registered Mealy FSM} (Σύγχρονη Mealy) για τους εξής λόγους:
 \begin{itemize}
-    \item \textbf{Συγχρονισμός:} Οι έξοδοι ενημερώνονται μόνο στις ακμές ρολογιού, εξαλείφοντας race conditions
-    \item \textbf{Ασφάλεια:} Οι έξοδοι εξαρτώνται αποκλειστικά από την τρέχουσα κατάσταση, όχι από τις εισόδους
-    \item \textbf{Χωρίς glitches:} Αποφεύγονται τα output glitches που εμφανίζονται σε Mealy FSM λόγω combinatorial paths
-    \item \textbf{Ευκολία επαλήθευσης:} Η συμπεριφορά είναι προβλέψιμη και εύκολη στο debugging
-    \item \textbf{Κατάλληλο για pipeline:} Οι καθαρές καταστάσεις διευκολύνουν τον σχεδιασμό pipelined datapath
+    \item \textbf{Εξάρτηση εξόδων από εισόδους:} Οι έξοδοι (\texttt{final\_output}, \texttt{total\_ovf}) εξαρτώνται τόσο από την τρέχουσα κατάσταση όσο και από τα σήματα εισόδου (\texttt{alu1\_ovf}, \texttt{alu2\_ovf}, \texttt{mac1\_ovf\_*}, \texttt{mac2\_ovf\_*}).
+    \item \textbf{Registered outputs:} Επειδή η λογική εξόδων βρίσκεται μέσα σε \texttt{always @(posedge clk)}, οι έξοδοι είναι \textbf{σύγχρονες}, εξαλείφοντας glitches και εξασφαλίζοντας σταθερές τιμές για ολόκληρο τον κύκλο ρολογιού
+    \item \textbf{Καθυστέρηση ενός κύκλου:} Η αλλαγή εξόδων εμφανίζεται στην \textit{επόμενη} ακμή ρολογιού μετά τον εντοπισμό συνθήκης (π.χ. overflow), παρέχοντας πιο εύκολο timing closure
 \end{itemize}
 
 \subsubsection{Διάγραμμα Καταστάσεων FSM}
-
-Σύμφωνα με την εκφώνηση: ``το FSM σας θα πρέπει να έχει 7 στάδια''. Το ακόλουθο διάγραμμα απεικονίζει την αρχιτεκτονική 7 καταστάσεων:
+Το ακόλουθο διάγραμμα απεικονίζει το FSM 7 καταστάσεων (Figure \ref{fig:fsm_diagram}). Πρακτικά το  Output Layer (S5) υλοποιήθηκε σε δύο καταστάσεις (έτσι ώστε να εκτελείται σε 2 κυκλους του ρολογιού) για την αποφυγή combinatorial loops (βλ. παρ. 5.3.4).
 
 \begin{figure}[H]
 \centering
@@ -135,11 +133,11 @@
         \textcolor{black}{White Nodes}: Normal Processing\\
         \\[0.1ex]\large
         \textcolor{red}{Red Dashed}: Overflow Exception\\
-        (Output saturates to MAX\_POS)
     };
 
 \end{tikzpicture}
-\caption{Διάγραμμα καταστάσεων FSM (8 states) - Το output layer χωρίζεται σε S5a και S5b για αποφυγή combinatorial loop}
+\caption{Διάγραμμα καταστάσεων FSM του Neural Network Accelerator.}
+\label{fig:fsm_diagram}
 \end{figure}
 
 \subsubsection{Περιγραφή Καταστάσεων}
@@ -151,13 +149,13 @@
 \hline
 \textbf{Κατάσταση} & \textbf{ID} & \textbf{Κωδικός} & \textbf{Περιγραφή} \\
 \hline
-S\_DEACTIVATED & S0 & 000 & Αρχική κατάσταση μετά από reset \\
-S\_LOADING & S1 & 001 & Φόρτωση βαρών/πολώσεων από ROM σε RegFile \\
+S\_DEACTIVATED & S0 & 000 & Αρχική κατάσταση μετά από reset \\&&&\\
+S\_LOADING & S1 & 001 & Φόρτωση βαρών/πολώσεων από τη ROM στο RegFile \\
 S\_IDLE & S2 & 010 & Αναμονή για νέες εισόδους (Ready state) \\
 S\_PREPROCESS & S3 & 011 & Αριθμητική ολίσθηση δεξιά στις εισόδους \\
 S\_INPUT\_LAYER & S4 & 100 & Εκτέλεση νευρώνων 1 και 2 (παράλληλα) \\
 S\_OUTPUT\_LAYER1 & S5a & 101 & Νευρώνας 3 - Πρώτο MAC: inter\_3 × w3 + b3 \\
-S\_OUTPUT\_LAYER2 & S5b & 110 & Νευρώνας 3 - Δεύτερο MAC: inter\_4 × w4 + temp \\
+S\_OUTPUT\_LAYER2 & S5b & 110 & Νευρώνας 3 - Δεύτερο MAC: inter\_4 × w4 + mac1\_temp \\
 S\_POSTPROCESS & S6 & 111 & Αριθμητική ολίσθηση αριστερά στην έξοδο \\
 \hline
 \end{tabular}
@@ -165,39 +163,34 @@ S\_POSTPROCESS & S6 & 111 & Αριθμητική ολίσθηση αριστερ
 
 \subsubsection{Σχεδιαστική Απόφαση Υλοποίησης: Διαχωρισμός Output Layer}
 
-\textbf{Σημείωση:} Παρόλο που η εκφώνηση ζητά 7 στάδια, η πρακτική υλοποίηση στο \texttt{nn.v} χρησιμοποιεί \textbf{8 καταστάσεις}. Η αιτία είναι τεχνική και εξηγείται παρακάτω.
+Παρόλο που η εκφώνηση ζητά 7 στάδια, η πρακτική υλοποίηση στο \texttt{nn.v} χρησιμοποιεί \textbf{8 καταστάσεις}. Η αιτία εξηγείται παρακάτω.
 
 Το output layer του νευρωνικού δικτύου απαιτεί τον υπολογισμό:
 \begin{align}
 \text{inter}_5 &= \text{inter}_3 \times \text{weight}_3 + \text{inter}_4 \times \text{weight}_4 + \text{bias}_3
 \end{align}
 
-Η εκφώνηση ζητά: ``Υλοποιήστε την συγκεκριμένη λογική χρησιμοποιώντας τις δύο μονάδες MAC σειριακά''. Αυτή η απαίτηση υλοποιείται ως εξής:
-
+Σύμφωνα με την εκφώνηση αυτή η απαίτηση υλοποιείται ως εξής:
 \begin{align}
 \text{mac3} &= \text{inter}_3 \times \text{weight}_3 + \text{bias}_3 \quad \text{(MAC1 στο S5a)} \\
 \text{inter}_5 &= \text{inter}_4 \times \text{weight}_4 + \text{mac3} \quad \text{(MAC2 στο S5b)}
 \end{align}
-
-\textbf{Πρόβλημα: Combinatorial Loop}
-
-Αν προσπαθήσουμε να εκτελέσουμε και τα δύο MAC σε ένα κύκλο:
-\begin{lstlisting}[caption=Προβληματικός κώδικας (combinatorial loop)]
-// BAD: Zero-delay loop - Exit 137!
-mac2_op3 = mac1_result;  // Απευθείας σύνδεση
-\end{lstlisting}
-
-Αυτό δημιουργεί \textbf{combinatorial loop} γιατί:
+\justify
+\textbf{Ωστόσο:} Αν προσπαθήσουμε να εκτελέσουμε και τα δύο MAC σε ένα κύκλο θα δημιουργηθεί \textbf{combinatorial loop} διότι:
 \begin{itemize}
     \item Το MAC1 είναι συνδυαστικό κύκλωμα (χωρίς ρολόι)
     \item Η έξοδος του MAC1 (\texttt{mac1\_result}) τροφοδοτείται στην είσοδο του MAC2
     \item Το MAC2 είναι επίσης συνδυαστικό
     \item Δεν υπάρχει καταχωρητής που να ``σπάει'' τον βρόχο
 \end{itemize}
-
+\begin{lstlisting}[caption=Προβληματικός κώδικας (combinatorial loop)]
+// Zero-delay loop - Exit 137 (timeout)
+mac2_op3 = mac1_result;  // Direct connection
+\end{lstlisting}
+\justify
 \textbf{Λύση: Pipelining με Register}
 
-Διαχωρίζουμε το output layer σε \textbf{δύο καταστάσεις} χρησιμοποιώντας και τις δύο MAC μονάδες σειριακά:
+Διαχωρίζουμε το output layer σε \textbf{δύο καταστάσεις} χρησιμοποιώντας και τις δύο MAC μονάδες σειριακά (όπως αναφέρει και η εκφώνηση):
 
 \begin{enumerate}
     \item \textbf{S\_OUTPUT\_LAYER1 (S5a):} 
@@ -214,94 +207,51 @@ mac2_op3 = mac1_result;  // Απευθείας σύνδεση
     \end{itemize}
 \end{enumerate}
 
-\begin{lstlisting}[caption=Σωστός κώδικας (με register - χωρίς combinatorial loop), language=Verilog]
-// S_OUTPUT_LAYER1: Φόρτωση MAC1 και αποθήκευση σε register
+\subsection{Χειρισμός Υπερχείλισης: Ασυμφωνία στο \texttt{nn\_model.v}}
+Παρατηρήθηκε ότι αν και η εκφώνηση αναφέρει ότι σε περίπτωση overflow η έξοδος πρέπει να είναι ο \textbf{``μέγιστος δυνατός θετικός αριθμός''} (δηλαδή το \texttt{0x7FFFFFFF}), στο παρεχόμενο reference model (\texttt{nn\_model.v}) επιστρέφεται η τιμή \texttt{\textbf{0xFFFFFFFF}} (γραμμή 95).
+
+\textbf{Απόφαση:} Προσαρμόσαμε το \texttt{nn.v} ώστε να επιστρέφει \texttt{\textbf{0xFFFFFFFF}} για να περνάει επιτυχώς το \textbf{testbench}, παρόλου που σε 32-bit signed αναπαράσταση, το \texttt{0xFFFFFFFF} αντιστοιχεί στο $-1$, όχι στον max positive.
+
+\begin{lstlisting}[caption=Ακολουθούμε το nn\_model για να περάσει το testbench, language=Verilog]
 case (state)
-    S_OUTPUT_LAYER1: begin
-        mac1_op1 = inter_3;
-        mac1_op2 = rf_readData1;  // weight_3
-        mac1_op3 = rf_readData2;  // bias_3
-    end
+  //==================================================================
+  // Constants
+  //==================================================================
+  localparam [31:0] OVERFLOW_VALUE = 32'hFFFFFFFF; //adapted to nn_model
+  localparam [2:0]  NO_OVERFLOW    = 3'b111;
+  localparam [2:0]  NO_ZERO        = 3'b111;
 endcase
-
-always @(posedge clk) begin
-    if (state == S_OUTPUT_LAYER1)
-        mac1_temp <= mac1_result;  // Registered result
-end
-
-// S_OUTPUT_LAYER2: Φόρτωση MAC2 και χρήση του registered result
-case (state)
-    S_OUTPUT_LAYER2: begin
-        mac2_op1 = inter_4;
-        mac2_op2 = rf_readData1;  // weight_4
-        mac2_op3 = mac1_temp;     // Registered! No loop!
-    end
-endcase
-
-always @(posedge clk) begin
-    if (state == S_OUTPUT_LAYER2)
-        inter_5 <= mac2_result;  // Final result
-end
 \end{lstlisting}
-
-\textbf{Αποτέλεσμα:} Η υλοποίηση χρησιμοποιεί \textbf{8 καταστάσεις} (S0-S6, με S5 διαχωρισμένο σε S5a και S5b), παρόλο που το διάγραμμα δείχνει 7 στάδια σύμφωνα με την εκφώνηση. Αυτός ο διαχωρισμός είναι \textbf{απαραίτητος} για:
-\begin{itemize}
-    \item Αποφυγή combinatorial loops
-    \item Χρήση και των δύο MAC μονάδων σειριακά (όπως ζητά η εκφώνηση)
-    \item Εξασφάλιση σωστής λειτουργίας στην προσομοίωση
-\end{itemize}
-
-\subsubsection{Επιλογή Κωδικοποίησης Καταστάσεων}
-
-Επιλέχθηκε \textbf{διαδοχική κωδικοποίηση (sequential encoding)} για τις καταστάσεις:
-
-\begin{itemize}
-    \item \textbf{Αντιστοιχία με FSM diagram:} Η κωδικοποίηση S0=000, S1=001, S2=010, ... ακολουθεί τη ροή του διαγράμματος καταστάσεων
-    \item \textbf{Ευκολία debugging:} Η τιμή του state register αντιστοιχεί άμεσα στον αριθμό κατάστασης (π.χ. state=3 σημαίνει S3)
-    \item \textbf{Απλότητα επαλήθευσης:} Ο έλεγχος της σωστής μετάβασης γίνεται πιο διαισθητικός
-    \item \textbf{Εναλλακτικές:} Θα μπορούσε να χρησιμοποιηθεί one-hot encoding (8 bits) για ταχύτερη αποκωδικοποίηση ή Gray encoding για μείωση switching activity, αλλά η διαδοχική κωδικοποίηση είναι επαρκής για 8 καταστάσεις
-\end{itemize}
-
-\subsection{Χειρισμός Υπερχείλισης}
-
-Σε περίπτωση overflow σε οποιοδήποτε στάδιο:
-\begin{enumerate}
-    \item Το FSM μεταβαίνει άμεσα στην κατάσταση IDLE
-    \item Η έξοδος τίθεται στο 0xFFFFFFFF
-    \item Το σήμα \texttt{total\_ovf} ενεργοποιείται
-    \item Το \texttt{ovf\_fsm\_stage} δείχνει το στάδιο όπου συνέβη η υπερχείλιση
-\end{enumerate}
 
 \subsection{Register File Pre-fetching}
 
 \subsubsection{Πρόβλημα: Σύγχρονη Ανάγνωση Register File}
-
 Το Register File (Άσκηση 3) υλοποιεί \textbf{σύγχρονη ανάγνωση} (registered outputs). Αυτό σημαίνει ότι τα δεδομένα εμφανίζονται στις εξόδους \texttt{readData} \textbf{έναν κύκλο μετά} τον ορισμό της διεύθυνσης \texttt{readReg}.
 
 \subsubsection{Λύση: Address Pre-fetching}
-
-Για να αντιμετωπιστεί αυτή η καθυστέρηση, το FSM εφαρμόζει τεχνική \textbf{pre-fetching διευθύνσεων}: οι διευθύνσεις τίθενται στην \textbf{προηγούμενη κατάσταση} από ότι χρειάζονται τα δεδομένα.
+Για να αντιμετωπιστεί αυτή η καθυστέρηση, το FSM εφαρμόζει τεχνική \textbf{pre-fetching διευθύνσεων}. Οι διευθύνσεις τίθενται στην \textbf{προηγούμενη κατάσταση} από ότι χρειάζονται τα δεδομένα. Αυτή η τεχνική ``read-ahead'' εξασφαλίζει ότι τα δεδομένα είναι έτοιμα όταν τα χρειάζονται οι ALU/MAC, χωρίς να χρειάζονται επιπλέον κύκλοι αναμονής:
 
 \begin{lstlisting}[caption=Pre-fetching διευθύνσεων στο nn.v, language=Verilog]
 case (state)
-    // Στο IDLE θέτουμε διευθύνσεις για PREPROCESS
+    // In S2=IDLE we set the addresses for S3=PREPROCESS
     S_IDLE, S_DEACTIVATED: begin
-        rf_readReg1 = ADDR_SHIFT_BIAS_1;  // -> data στο S_PREPROCESS
+        rf_readReg1 = ADDR_SHIFT_BIAS_1;  // -> data for S_PREPROCESS
         rf_readReg2 = ADDR_SHIFT_BIAS_2;
     end
     
-    // Στο PREPROCESS θέτουμε διευθύνσεις για INPUT_LAYER
+    // In S3=PREPROCESS we set the addresses for S4=INPUT_LAYER
     S_PREPROCESS: begin
-        rf_readReg1 = ADDR_WEIGHT_1;      // -> data στο S_INPUT_LAYER
+        rf_readReg1 = ADDR_WEIGHT_1;      // -> data for S_INPUT_LAYER
         rf_readReg2 = ADDR_BIAS_1;
         rf_readReg3 = ADDR_WEIGHT_2;
         rf_readReg4 = ADDR_BIAS_2;
     end
-    // ... κλπ
+    // ... etc.
 endcase
 \end{lstlisting}
 
 \subsubsection{Χρονοδιάγραμμα Pre-fetching}
+Στον παρακάτω πίνακα φαίνεται για κάθε state του FSM (κατά την διάρκεια της κανονικής εκτέλεσης του προγράμματος), τα ποιων διευθύνσεων τα δεδομένα "ζητούνται" απο το Register File και ποια είναι ήδη έτοιμα για επεξεργασία.
 
 \begin{table}[H]
 \centering
@@ -326,256 +276,92 @@ S\_POSTPROCESS & -- & shift\_bias\_3 \\
 \end{tabular}
 \end{table}
 
-Αυτή η τεχνική ``read-ahead'' εξασφαλίζει ότι τα δεδομένα είναι έτοιμα όταν τα χρειάζεται η ALU/MAC, χωρίς να χρειάζονται επιπλέον κύκλοι αναμονής.
 
-\textbf{Σημαντική Παρατήρηση - Ασυμφωνία στο \texttt{nn\_model.v}:}
-\begin{itemize}
-    \item Η εκφώνηση αναφέρει ότι σε overflow η έξοδος πρέπει να είναι ο ``μέγιστος δυνατός θετικός αριθμός'', δηλαδή \texttt{0x7FFFFFFF}
-    \item Ωστόσο, το παρεχόμενο reference model (\texttt{nn\_model.v}) επιστρέφει \texttt{0xFFFFFFFF} (βλ. γραμμή 95)
-    \item \textbf{Απόφαση:} Προσαρμόσαμε το \texttt{nn.v} ώστε να επιστρέφει \texttt{0xFFFFFFFF} για να περνάει επιτυχώς το testbench
-    \item Σε 32-bit signed αναπαράσταση, το \texttt{0xFFFFFFFF} αντιστοιχεί στο $-1$, όχι στο max positive
-\end{itemize}
-
-\begin{lstlisting}[caption=Ακολουθούμε το nn\_model για να περάσει το testbench, language=Verilog]
-case (state)
-  //==================================================================
-  // Constants
-  //==================================================================
-  localparam [31:0] OVERFLOW_VALUE = 32'hFFFFFFFF; //adapted to nn_model
-  localparam [2:0]  NO_OVERFLOW    = 3'b111;
-  localparam [2:0]  NO_ZERO        = 3'b111;
-endcase
-\end{lstlisting}
-
-\subsection{Αποθήκευση Δεδομένων}
-
-Επιλέχθηκε η χρήση \textbf{ενδιάμεσων registers} αντί για αποθήκευση στο Register File για τους εξής λόγους:
-\begin{itemize}
-    \item Μείωση της πολυπλοκότητας πρόσβασης στο RegFile
-    \item Αποφυγή conflicts με τις θύρες ανάγνωσης/εγγραφής
-    \item Καλύτερη απόδοση λόγω άμεσης πρόσβασης
-    \item Το RegFile χρησιμοποιείται μόνο για τα βάρη και τις πολώσεις
-\end{itemize}
-
-\subsection{Σχεδιαστικές Αποφάσεις}
-
-\subsubsection{Αρχιτεκτονική Hardware}
-
-\begin{enumerate}
-    \item \textbf{2 MAC Units σε παράλληλη διάταξη:}
-    \begin{itemize}
-        \item Επιτρέπει τον ταυτόχρονο υπολογισμό δύο νευρώνων (1 \& 2) στο input layer
-        \item Μειώνει τον αριθμό κύκλων ρολογιού για ολόκληρο τον υπολογισμό
-        \item Κάθε MAC αποτελείται από 2 ALUs σε σειρά (πολλαπλασιασμός → πρόσθεση)
-    \end{itemize}
-    
-    \item \textbf{2 ALUs για shift operations:}
-    \begin{itemize}
-        \item Χρησιμοποιούνται στα στάδια Pre-process και Post-process
-        \item Επιτρέπουν παράλληλη ολίσθηση των δύο εισόδων
-        \item Αριθμητική ολίσθηση (SRA/SLA) για διατήρηση προσήμου
-    \end{itemize}
-    
-    \item \textbf{Register File με 4 θύρες ανάγνωσης:}
-    \begin{itemize}
-        \item Επαρκεί για την ανάγνωση 4 τιμών ανά κύκλο (π.χ. weight1, bias1, weight2, bias2)
-        \item Αποφεύγονται extra κύκλοι για sequential reads
-        \item Οι 2 θύρες εγγραφής χρησιμοποιούνται κατά το loading
-    \end{itemize}
-\end{enumerate}
-
-\subsubsection{Οργάνωση FSM}
-
-\begin{enumerate}
-    \item \textbf{Moore FSM αντί για Mealy:}
-    \begin{itemize}
-        \item Οι έξοδοι καθορίζονται μόνο από την τρέχουσα κατάσταση
-        \item Αποφυγή glitches στις εξόδους
-        \item Πιο εύκολο timing closure
-    \end{itemize}
-    
-    \item \textbf{Διαχωρισμός Loading από Processing:}
-    \begin{itemize}
-        \item Τα βάρη φορτώνονται μόνο μία φορά (S1 → S2)
-        \item Μετά την αρχικοποίηση, το σύστημα κυκλώνει μεταξύ S2-S6
-        \item Σημαία \texttt{weights\_loaded} αποτρέπει επαναφόρτωση
-    \end{itemize}
-    
-    \item \textbf{Άμεση μετάβαση σε IDLE κατά overflow:}
-    \begin{itemize}
-        \item Αποφεύγονται περιττοί υπολογισμοί
-        \item Η έξοδος saturates στο 0xFFFFFFFF (σύμφωνα με nn\_model)
-        \item Το \texttt{ovf\_fsm\_stage} καταγράφει πού συνέβη το σφάλμα
-    \end{itemize}
-\end{enumerate}
-
-\subsubsection{Διαχείριση Μνήμης}
-
-\begin{enumerate}
-    \item \textbf{ROM για αρχικά βάρη:}
-    \begin{itemize}
-        \item Τα βάρη αποθηκεύονται σε εξωτερικό αρχείο (\texttt{rom\_bytes.data})
-        \item Διπλή θύρα ανάγνωσης για γρήγορη φόρτωση (2 τιμές/κύκλο)
-        \item 5 κύκλοι για φόρτωση όλων των 10 παραμέτρων
-    \end{itemize}
-    
-    \item \textbf{Ενδιάμεσοι καταχωρητές (inter\_1 έως inter\_5):}
-    \begin{itemize}
-        \item Αποθηκεύουν τα ενδιάμεσα αποτελέσματα μεταξύ σταδίων
-        \item Άμεση πρόσβαση χωρίς καθυστέρηση RegFile
-        \item Απλοποιούν τον έλεγχο ροής δεδομένων
-    \end{itemize}
-\end{enumerate}
-
-\subsubsection{Πίνακας Διευθύνσεων Register File}
-
-\begin{table}[H]
-\centering
-\caption{Αντιστοίχιση διευθύνσεων RegFile με παραμέτρους}
-\begin{tabular}{|c|c|l|}
-\hline
-\textbf{Διεύθυνση} & \textbf{Hex} & \textbf{Παράμετρος} \\
-\hline
-0x02 & 2 & shift\_bias\_1 \\
-0x03 & 3 & shift\_bias\_2 \\
-0x04 & 4 & weight\_1 \\
-0x05 & 5 & bias\_1 \\
-0x06 & 6 & weight\_2 \\
-0x07 & 7 & bias\_2 \\
-0x08 & 8 & weight\_3 \\
-0x09 & 9 & weight\_4 \\
-0x0A & A & bias\_3 \\
-0x0B & B & shift\_bias\_3 \\
-\hline
-\end{tabular}
-\end{table}
 
 \subsection{Testbench Νευρωνικού}
 
-Το testbench εκτελεί 100 επαναλήψεις με 3 τεστ ανά επανάληψη:
+Το testbench εκτελεί 100 επαναλήψεις με 3 τεστ ανά επανάληψη, όπου κάθε επανάληψη τεστάρει το νευρωνικό για τυχαία παραγόμενο ζεύγος εισόδων με εύρος τιμών:
 \begin{enumerate}
     \item \textbf{Κανονικό εύρος:} [-4096, 4095]
     \item \textbf{Θετικό overflow:} [MAX\_POS/2, MAX\_POS]
     \item \textbf{Αρνητικό overflow:} [MAX\_NEG, MAX\_NEG/2]
 \end{enumerate}
 
-Η συνάρτηση αναφοράς \texttt{nn\_model} υπολογίζει το αναμενόμενο αποτέλεσμα για σύγκριση.
+\subsubsection{Latency Calibration}
+Η συνάρτηση αναφοράς \texttt{nn\_model} υπολογίζει το αναμενόμενο αποτέλεσμα για σύγκριση. Ωστόσο, καθώς αυτό είναι στιγμιαίο, αλλά το κύκλωμα του νευρωνικού έχει καθυστέρηση λόγω
+του FSM, αν γίνει σύγκριση πολύ νωρίς, το τεστ αποτυγχάνει ακόμα και αν το κύκλωμα λειτουργεί σωστά. 
 
-\subsubsection{Αλλαγές για Συμβατότητα με EDA Playground (Icarus Verilog 12)}
+Αφού τα έγκυρα δεδομένα εμφανίζονται στο νευρωνικό ακριβώς 6 κύκλους μετά τον παλμό enable (σύμφωνα με αριθμό καταστάσεων του FSM που διατρέχονται ), εφαρμόστηκε το εξείς Latency:
 
-Κατά την εκτέλεση του testbench στο EDA Playground με τον Icarus Verilog 12, αντιμετωπίστηκαν ορισμένα προβλήματα που απαίτησαν τροποποιήσεις. Παρακάτω περιγράφονται οι αλλαγές και τα διδάγματα (learnings):
-
-\paragraph{1. Επίλυση Συντακτικού Λάθους \texttt{\$urandom\_range}}
-
-\textbf{Πρόβλημα:} Ο Icarus Verilog 12 εμφανίζει συντακτικά λάθη όταν χρησιμοποιούνται nested κλήσεις \texttt{\$urandom\_range} με αριθμητικές πράξεις και bit-slicing απευθείας μέσα σε κλήση task (π.χ. \texttt{run\_test(\$signed(\$urandom...))}).
-
-\textbf{Λύση:} Εισήχθησαν \textbf{προσωρινές μεταβλητές} (\texttt{raw\_rand}, \texttt{temp\_in1}, \texttt{temp\_in2}):
 \begin{lstlisting}[style=verilogstyle]
-reg [31:0] raw_rand;
-reg signed [31:0] temp_in1, temp_in2;
-
-// Παράδειγμα χρήσης:
-raw_rand = $urandom_range(8191, 0);
-temp_in1 = $signed(raw_rand) - 32'd4096;
-run_test(temp_in1, temp_in2, "Normal Range");
-\end{lstlisting}
-
-\textbf{Διδαγμα:} Ο διαχωρισμός της γέννησης τυχαίων αριθμών από τη χρήση τους επιτρέπει στον simulator να κάνει parsing την τυχαία τιμή σε ένα 32-bit register πρώτα, να εκτελέσει τις αριθμητικές πράξεις, και μετά να περάσει μια "καθαρή" μεταβλητή στο task.
-
-\paragraph{2. Βαθμονόμηση Καθυστέρησης (Latency Calibration)}
-
-\textbf{Πρόβλημα:} Η εκφώνηση αναφέρει ότι το \texttt{nn\_model} είναι στιγμιαίο, αλλά το κύκλωμα έχει καθυστέρηση λόγω του FSM. Αν γίνει σύγκριση πολύ νωρίς ή πολύ αργά, το τεστ αποτυγχάνει ακόμα και αν το κύκλωμα λειτουργεί σωστά.
-
-\textbf{Λύση:} Τα έγκυρα δεδομένα εμφανίζονται ακριβώς \textbf{6 κύκλους} μετά τον παλμό enable:
-\begin{lstlisting}[style=verilogstyle]
-// Μέσα στο task run_test:
-repeat(6) @(posedge clk);  // Αναμονή 6 κύκλων
+// Starting next test:
+@(posedge clk);
+    enable = 1;
+@(posedge clk);
+    enable = 0;
+// Generating expected result
 expected_val = nn_model(in1, in2);
-// Τώρα γίνεται η σύγκριση...
+// Wait 6 cycles
+repeat(6) @(posedge clk);  
+// Now the both results are ready and can be compared...
 \end{lstlisting}
 
-\textbf{Διδαγμα:} Η σωστή βαθμονόμηση του timing είναι κρίσιμη για testbenches. Η καθυστέρηση εξαρτάται από τον αριθμό καταστάσεων του FSM που διατρέχονται (6 καταστάσεις στην περίπτωσή μας).
-
-\paragraph{3. Διόρθωση Γέννησης Signed Τυχαίων Αριθμών}
-
-\textbf{Πρόβλημα:} Η εκφώνηση ζητά συγκεκριμένα signed εύρη (θετικό/αρνητικό overflow), αλλά η \texttt{\$urandom\_range} επιστρέφει unsigned integers.
-
-\textbf{Λύση:} Διαφορετική προσέγγιση για κάθε περίπτωση:
-\begin{itemize}
-    \item \textbf{Κανονικό εύρος:} Γεννάμε 0-8191 και αφαιρούμε 4096 $\rightarrow$ [-4096, 4095]
-    \item \textbf{Θετικό overflow:} Γεννάμε στο υψηλό θετικό εύρος και \textbf{εξαναγκάζουμε το MSB σε 0}:
-\begin{lstlisting}[style=verilogstyle]
-temp_in1 = $signed({1'b0, raw_rand[30:0]}); // Force positive
-\end{lstlisting}
-    \item \textbf{Αρνητικό overflow:} Γεννάμε 30 bits και \textbf{εξαναγκάζουμε το MSB σε 1}:
-\begin{lstlisting}[style=verilogstyle]
-temp_in1 = $signed({1'b1, raw_rand[30:0]}); // Force negative
-\end{lstlisting}
-\end{itemize}
-
-\textbf{Διδαγμα:} Δεν πρέπει να βασιζόμαστε σε implicit casting μεταξύ unsigned/signed, καθώς διαφορετικοί simulators μπορεί να συμπεριφέρονται διαφορετικά. Ο ρητός έλεγχος του sign bit εγγυάται τα σωστά 32-bit signed patterns.
-
-\paragraph{4. Συμμόρφωση με την Εκφώνηση}
-
-Για πλήρη συμμόρφωση με τις απαιτήσεις της άσκησης:
-\begin{itemize}
-    \item \textbf{Αναφορά σφαλμάτων:} Εκτύπωση χρονικής στιγμής, εισόδων, εξόδου κυκλώματος, και εξόδου αναφοράς σε περίπτωση λάθους
-    \item \textbf{Μέτρηση:} Μεταβλητές \texttt{pass\_count} και \texttt{test\_count} για την τελική αναφορά PASS/TOTAL
-    \item \textbf{Δομή βρόχου:} Αυστηρή υλοποίηση \texttt{for (iteration = 0; iteration < 100...)} με 3 sub-tests εντός
-\end{itemize}
-
-\subsection{Κυματομορφές Νευρωνικού Δικτύου}
+\subsubsection{Αποτελέσματα Testbench}
+Τα αποτελέσματα της προσομοίωσης, όπως καταγράφηκαν από το testbench, παρουσιάζονται παρακάτω στο Figure \ref{fig:tb_results}.
 
 \begin{figure}[H]
-\centering
-\begin{tikzpicture}[scale=0.7]
-    % Time axis
-    \draw[->,thick] (0,0) -- (16,0) node[right] {Cycles};
-    
-    % FSM State
-    \node[left] at (0,6) {state};
-    \draw[thick] (0,5.5) -- (1,5.5);
-    \draw[thick,fill=red!20] (1,5.3) rectangle (2,5.7);
-    \node[font=\tiny] at (1.5,5.5) {000};
-    \draw[thick,fill=yellow!20] (2,5.3) rectangle (3,5.7);
-    \node[font=\tiny] at (2.5,5.5) {001};
-    \draw[thick,fill=gray!20] (3,5.3) rectangle (4,5.7);
-    \node[font=\tiny] at (3.5,5.5) {111};
-    \draw[thick,fill=blue!20] (4,5.3) rectangle (5,5.7);
-    \node[font=\tiny] at (4.5,5.5) {010};
-    \draw[thick,fill=green!20] (5,5.3) rectangle (7,5.7);
-    \node[font=\tiny] at (6,5.5) {011};
-    \draw[thick,fill=orange!20] (7,5.3) rectangle (9,5.7);
-    \node[font=\tiny] at (8,5.5) {100};
-    \draw[thick,fill=purple!20] (9,5.3) rectangle (11,5.7);
-    \node[font=\tiny] at (10,5.5) {101};
-    \draw[thick,fill=cyan!20] (11,5.3) rectangle (13,5.7);
-    \node[font=\tiny] at (12,5.5) {110};
-    \draw[thick,fill=gray!20] (13,5.3) rectangle (16,5.7);
-    \node[font=\tiny] at (14.5,5.5) {111};
-    
-    % Enable
-    \node[left] at (0,4.5) {enable};
-    \draw[thick] (0,4) -- (1,4) -- (1,5) -- (2,5) -- (2,4) --
-                 (3.5,4) -- (3.5,5) -- (4.5,5) -- (4.5,4) -- (16,4);
-    
-    % final_output
-    \node[left] at (0,3) {output};
-    \draw[thick,blue] (0,2.5) -- (13,2.5) -- (13,3.5) -- (16,3.5);
-    \node[above,font=\tiny] at (14.5,3.5) {valid};
-    
-    % Annotations
-    \node[font=\tiny,rotate=90] at (1.5,6.5) {DEACT};
-    \node[font=\tiny,rotate=90] at (2.5,6.5) {LOAD};
-    \node[font=\tiny,rotate=90] at (3.5,6.5) {IDLE};
-    \node[font=\tiny,rotate=90] at (4.5,6.5) {PRE};
-    \node[font=\tiny,rotate=90] at (6,6.5) {INPUT};
-    \node[font=\tiny,rotate=90] at (8,6.5) {OUT1};
-    \node[font=\tiny,rotate=90] at (10,6.5) {OUT2};
-    \node[font=\tiny,rotate=90] at (12,6.5) {POST};
-    \node[font=\tiny,rotate=90] at (14.5,6.5) {IDLE};
-\end{tikzpicture}
-\caption{Σχηματική αναπαράσταση κυματομορφών FSM νευρωνικού}
+    \centering
+    \begin{verbatim}
+Loading weights...
+Weights loaded. Starting tests...
+
+============================================================
+FINAL REPORT
+============================================================
+Total Test Cases: 300
+PASSED:           300
+FAILED:           0
+Success Rate:     300 / 300
+RESULT: SUCCESS (All tests passed)
+============================================================
+    \end{verbatim}
+    \caption{Στιγμιότυπο κονσόλας από την εκτέλεση του \texttt{tb\_nn.v}}\label{fig:tb_results}
 \end{figure}
- if (final\_output === expected) begin //ΜΠΟΡΟΥΜΕ ΝΑ ΔΟΥΜΕ ΠΩΣ ΤΟ ΑΠΟΤΕΛΕΣΜΑ ΣΤΟ WAVEFORM ΕΜΦΑΝΙΖΕΤΑΙ ΣΕ 1 ΚΥΚΛΟ ΕΝΩ ΤΟ ΝΕΥΡΩΝΙΚΟ ΣΕ 6        
+
+Όπως φαίνεται από την τελική αναφορά, το κύκλωμα πέρασε επιτυχώς και τις 300 περιπτώσεις ελέγχου (\textbf{100\% επιτυχία}), επιβεβαιώνοντας την ορθότητα της σχεδίασης του FSM, της διαχείρισης των καταχωρητών και της λογικής ανίχνευσης υπερχείλισης.
+
+
+\subsection{Κυματομορφές Νευρωνικού Δικτύου}
+Παρακάτω, παρουσιάζονται οι κυματομορφές από την προσομοίωση του tb nn.v (Figure \ref{fig:waveform_ex4}), εστιάζοντας στα πρώτα στάδια της εκτέλεσης (Loading και πρώτες επαναλήψεις ελέγχου). Παρατηρούμε τα εξής στάδια λειτουργίας:
+
+\begin{itemize}
+    \item \textbf{Αρχικοποίηση \& Φόρτωση (0 - 200ns):} 
+    Στην αρχή βλέπουμε την ενεργοποίηση του \texttt{resetn} και τον πρώτο παλμό του \texttt{enable}. Το σύστημα μεταβαίνει στην κατάσταση \texttt{S\_LOADING} (δεν φαίνεται το state signal αλλά φαίνεται η καθυστέρηση μέχρι την ετοιμότητα).
+    
+    \item \textbf{Κανονική Λειτουργία (First test, 200 - 270ns):}
+    Εφαρμόζονται οι είσοδοι \texttt{input\_1} και \texttt{input\_2} και δινεται enable. Μετά από έναν κύκλο το αναμενόμενο αποτέλεσμα (\texttt{expected}) εμφανίζεται στην κυματομορφή, ενώ το ίδιο αποτέλεσμα εμφανίζεται στην έξοδο του νευρωνικού (\texttt{final\_output}) σε 6 κύκλους λόγω του FSM (όπως αναφέραμε στην παράγραφο 5.6.1). Καθώς και οι δύο έξοδοι συμφωνούν στην τιμή \texttt{0xfffd5134}, το σήμα \texttt{pass\_count} αυξάνεται σε 1. Δεν υπάρχει υπερχείλιση (\texttt{total\_ovf = 0}).
+
+    \item \textbf{Διαχείριση Υπερχείλισης (Second test, 280 - 310ns):}
+    Στο δεύτερο test, παρατηρούμε ότι το σήμα \texttt{total\_ovf} γίνεται 1 (high). Αυτό υποδεικνύει ότι προέκυψε υπερχείλιση κατά τους υπολογισμούς. Όπως είναι αναμενόμενο, η έξοδος \texttt{final\_output} οδηγείται στην τιμή \texttt{0xffffffff} (Saturation Value), που ταυτίζεται με το \texttt{expected} value του μοντέλου αναφοράς, επιβεβαιώνοντας ότι το κύκλωμα διαχειρίζεται σωστά τα overflows και συμμορφώνεται με το μοντέλο.
+\end{itemize}
+
+\begin{figure}[ht]
+    \centering
+    \makebox[\textwidth][c]{\includegraphics[width=1.1\textwidth]{Waveforms/Exercise_4 - Waveform.png}}
+    \caption{Κυματομορφές προσομοίωσης του Νευρωνικού Δικτύου. Φαίνεται η αρχικοποίηση και οι πρώτες επαναλήψεις ελέγχου (Normal και Overflow cases).}
+    \label{fig:waveform_ex4}
+\end{figure}
+\newpage
+\justify
+\textbf{Συνολική Εικόνα:}
+    Το σήμα \texttt{fail\_count} παραμένει σταθερά στο 0, ενώ το \texttt{pass\_count} αυξάνεται σε κάθε θετικό μέτωπο του ρολογιού μετά την ολοκλήρωση κάθε πράξης, αποδεικνύοντας την ορθή λειτουργία του συστήματος για διαφορετικά σενάρια εισόδου (Figure \ref{fig:waveform2_ex4}).
+
+    \begin{figure}[ht]
+    \centering
+    \makebox[\textwidth][c]{\includegraphics[width=1.1\textwidth]{Waveforms/Exercise_4 - Waveform2.png}}
+    \caption{Κυματομορφές προσομοίωσης του Νευρωνικού Δικτύου (Συνολική Εικόνα).}
+    \label{fig:waveform2_ex4}
+\end{figure}
+\newpage
+      
 \newpage

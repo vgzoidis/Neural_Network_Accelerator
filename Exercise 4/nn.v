@@ -582,7 +582,7 @@ module nn (
     end
 
     //==========================================================================
-    // Output Logic (Moore FSM - οι έξοδοι εξαρτώνται μόνο από την κατάσταση)
+    // Output Logic (Registered Mealy FSM)
     //==========================================================================
     always @(posedge clk or negedge resetn) begin
         if (!resetn) begin
@@ -602,8 +602,18 @@ module nn (
                     zero_fsm_stage <= NO_ZERO;
                 end
 
-                S_LOADING, S_IDLE: begin
-                    // Διατήρηση προηγούμενης εξόδου κατά τη φόρτωση/αναμονή
+                S_LOADING: begin
+                    // Διατήρηση προηγούμενης εξόδου κατά τη φόρτωση
+                end
+
+                S_IDLE: begin
+                    // Επαναφορά flags όταν ξεκινάει νέο test (enable=1)
+                    if (enable) begin
+                        total_ovf      <= 1'b0;
+                        total_zero     <= 1'b0;
+                        ovf_fsm_stage  <= NO_OVERFLOW;
+                        zero_fsm_stage <= NO_ZERO;
+                    end
                 end
 
                 S_PREPROCESS: begin

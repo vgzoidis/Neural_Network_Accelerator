@@ -79,8 +79,9 @@ module tb_nn;
         $dumpvars(0, input_1);
         $dumpvars(0, input_2);
         $dumpvars(0, enable);
+        $dumpvars(0, resetn);
         $dumpvars(0, clk);
-      
+          
         // 2. Comparison
         $dumpvars(0, final_output);
         $dumpvars(0, expected);

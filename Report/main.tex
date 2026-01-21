@@ -142,29 +142,6 @@ H παρούσα αναφορά περιγράφει την υλοποίηση �
 \input{exercise_4.tex}
 
 %=======================================================================
-\section{Συμπεράσματα}
-%=======================================================================
-
-Η εργασία ολοκληρώθηκε επιτυχώς με τα ακόλουθα αποτελέσματα:
-
-\begin{enumerate}
-    \item \textbf{ALU (alu.v):} Υλοποιήθηκε 32-bit ALU με 12 λειτουργίες και ανίχνευση υπερχείλισης
-    \item \textbf{Αριθμομηχανή (calc.v, calc\_enc.v):} Λειτουργική αριθμομηχανή με structural encoder βασισμένο στα σχήματα της εκφώνησης
-    \item \textbf{Register File (regfile.v):} 16×32-bit με σύγχρονη ανάγνωση (ένα always block) και data forwarding
-    \item \textbf{Νευρωνικό (mac\_unit.v, nn.v):} \textbf{Moore FSM} για ασφάλεια και συγχρονισμό, τεχνική pre-fetching για το Register File, και χειρισμό overflow
-\end{enumerate}
-
-\textbf{Βασικές Σχεδιαστικές Αποφάσεις:}
-\begin{itemize}
-    \item Επιλογή \textbf{Moore FSM} αντί Mealy για καθαρό συγχρονισμό και αποφυγή glitches
-    \item Υλοποίηση \textbf{σύγχρονης ανάγνωσης} στο Register File όπως ζητούσε η εκφώνηση, με τεχνική pre-fetching στο FSM
-    \item Διαχωρισμός του output layer σε 2 καταστάσεις (S5a, S5b) για αποφυγή combinatorial loop
-    \item Προσαρμογή της τιμής overflow σε \texttt{0xFFFFFFFF} για συμβατότητα με το \texttt{nn\_model.v}
-\end{itemize}
-
-Τα testbenches επιβεβαίωσαν την ορθή λειτουργία όλων των κυκλωμάτων. Η προσομοίωση πραγματοποιήθηκε στο EDA Playground με Icarus Verilog 12.
-
-%=======================================================================
 \section{Αναφορές}
 %=======================================================================
 
