@@ -2,6 +2,40 @@
 \section{Άσκηση 4: Νευρωνικό Δίκτυο (AI Accelerator)}
 %==============================================================================
 
+\subsection{Περιγραφή}
+
+Σε αυτή την άσκηση υλοποιήθηκε ένας AI Accelerator που εκτελεί ένα απλό νευρωνικό δίκτυο 3 νευρώνων. Το σύστημα ενσωματώνει όλα τα modules των προηγούμενων ασκήσεων:
+\begin{itemize}
+    \item \textbf{ALU} (Άσκηση 1): Για αριθμητικές ολισθήσεις (SRA/SLA)
+    \item \textbf{Register File} (Άσκηση 3): Για αποθήκευση βαρών και πολώσεων
+    \item \textbf{MAC Unit} (νέο): Για υπολογισμό νευρώνων (Multiply-Accumulate)
+    \item \textbf{ROM}: Για αρχική φόρτωση παραμέτρων
+\end{itemize}
+
+\subsubsection{Θύρες Εισόδου/Εξόδου}
+
+\begin{table}[H]
+\centering
+\caption{Θύρες του module nn}
+\begin{tabular}{|l|c|c|p{6.5cm}|}
+\hline
+\textbf{Θύρα} & \textbf{Κατεύθυνση} & \textbf{Πλάτος} & \textbf{Περιγραφή} \\
+\hline
+\texttt{clk} & Είσοδος & 1 & Σήμα ρολογιού \\
+\texttt{resetn} & Είσοδος & 1 & Σήμα επαναφοράς (active low) \\
+\texttt{enable} & Είσοδος & 1 & Σήμα ενεργοποίησης \\
+\texttt{input\_1} & Είσοδος & 32 & Πρώτη είσοδος (2's complement) \\
+\texttt{input\_2} & Είσοδος & 32 & Δεύτερη είσοδος (2's complement) \\
+\hdashline
+\texttt{final\_output} & Έξοδος & 32 & Τελικό αποτέλεσμα \\
+\texttt{total\_ovf} & Έξοδος & 1 & Ένδειξη υπερχείλισης \\
+\texttt{total\_zero} & Έξοδος & 1 & Ένδειξη μηδενικού αποτελέσματος \\
+\texttt{ovf\_fsm\_stage} & Έξοδος & 3 & Στάδιο υπερχείλισης (111 αν καμία) \\
+\texttt{zero\_fsm\_stage} & Έξοδος & 3 & Στάδιο μηδενισμού (111 αν κανένα) \\
+\hline
+\end{tabular}
+\end{table}
+
 \subsection{Αρχιτεκτονική Νευρωνικού}
 
 Το νευρωνικό δίκτυο αποτελείται από 3 νευρώνες και υλοποιεί την ακόλουθη λογική:
@@ -198,6 +232,62 @@ mac1_op3 = mac1_temp;  // No loop!
     \item Το σήμα \texttt{total\_ovf} ενεργοποιείται
     \item Το \texttt{ovf\_fsm\_stage} δείχνει το στάδιο όπου συνέβη η υπερχείλιση
 \end{enumerate}
+
+\subsection{Register File Pre-fetching}
+
+\subsubsection{Πρόβλημα: Σύγχρονη Ανάγνωση Register File}
+
+Το Register File (Άσκηση 3) υλοποιεί \textbf{σύγχρονη ανάγνωση} (registered outputs). Αυτό σημαίνει ότι τα δεδομένα εμφανίζονται στις εξόδους \texttt{readData} \textbf{έναν κύκλο μετά} τον ορισμό της διεύθυνσης \texttt{readReg}.
+
+\subsubsection{Λύση: Address Pre-fetching}
+
+Για να αντιμετωπιστεί αυτή η καθυστέρηση, το FSM εφαρμόζει τεχνική \textbf{pre-fetching διευθύνσεων}: οι διευθύνσεις τίθενται στην \textbf{προηγούμενη κατάσταση} από ότι χρειάζονται τα δεδομένα.
+
+\begin{lstlisting}[caption=Pre-fetching διευθύνσεων στο nn.v, language=Verilog]
+case (state)
+    // Στο IDLE θέτουμε διευθύνσεις για PREPROCESS
+    S_IDLE, S_DEACTIVATED: begin
+        rf_readReg1 = ADDR_SHIFT_BIAS_1;  // -> data στο S_PREPROCESS
+        rf_readReg2 = ADDR_SHIFT_BIAS_2;
+    end
+    
+    // Στο PREPROCESS θέτουμε διευθύνσεις για INPUT_LAYER
+    S_PREPROCESS: begin
+        rf_readReg1 = ADDR_WEIGHT_1;      // -> data στο S_INPUT_LAYER
+        rf_readReg2 = ADDR_BIAS_1;
+        rf_readReg3 = ADDR_WEIGHT_2;
+        rf_readReg4 = ADDR_BIAS_2;
+    end
+    // ... κλπ
+endcase
+\end{lstlisting}
+
+\subsubsection{Χρονοδιάγραμμα Pre-fetching}
+
+\begin{table}[H]
+\centering
+\caption{Χρονοδιάγραμμα Pre-fetching διευθύνσεων RegFile}
+\label{tab:prefetching}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Τρέχουσα Κατάσταση} & \textbf{Διευθύνσεις (set)} & \textbf{Δεδομένα (available)} \\
+\hline
+S\_IDLE / S\_DEACTIVATED & shift\_bias\_1, shift\_bias\_2 & (Μη έγκυρα) \\
+\hline
+S\_PREPROCESS & weight\_1, bias\_1, weight\_2, bias\_2 & shift\_bias\_1, shift\_bias\_2 \\
+\hline
+S\_INPUT\_LAYER & weight\_3, bias\_3 & weight\_1, bias\_1, weight\_2, bias\_2 \\
+\hline
+S\_OUTPUT\_LAYER1 & weight\_4 & weight\_3, bias\_3 \\
+\hline
+S\_OUTPUT\_LAYER2 & shift\_bias\_3 & weight\_4 \\
+\hline
+S\_POSTPROCESS & -- & shift\_bias\_3 \\
+\hline
+\end{tabular}
+\end{table}
+
+Αυτή η τεχνική ``read-ahead'' εξασφαλίζει ότι τα δεδομένα είναι έτοιμα όταν τα χρειάζεται η ALU/MAC, χωρίς να χρειάζονται επιπλέον κύκλοι αναμονής.
 
 \textbf{Σημαντική Παρατήρηση - Ασυμφωνία στο \texttt{nn\_model.v}:}
 \begin{itemize}

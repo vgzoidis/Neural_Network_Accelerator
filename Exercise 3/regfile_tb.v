@@ -20,7 +20,7 @@ module tb_regfile;
     // Μετρητής σφαλμάτων
     integer errors;
 
-    // 1. Instantiation του Regfile
+    // Instantiation του Regfile
     regfile #(
         .DATAWIDTH(DATAWIDTH)
     ) uut (
@@ -33,10 +33,10 @@ module tb_regfile;
         .readData1(readData1), .readData2(readData2), .readData3(readData3), .readData4(readData4)
     );
 
-    // 2. Δημιουργία Ρολογιού (Περίοδος 10ns)
+    // Δημιουργία Ρολογιού (Περίοδος 10ns)
     always #5 clk = ~clk;
 
-    // 3. Διαδικασία Ελέγχου
+    // Διαδικασία Ελέγχου
     initial begin
         // Αρχικοποίηση
         $dumpfile("dump.vcd");
@@ -87,7 +87,7 @@ module tb_regfile;
         end
 
         // --- TEST 3: FORWARDING TEST (Critical) ---
-        // Σενάριο: Γράφουμε στο Reg 5 και ΤΑΥΤΟΧΡΟΝΑ διαβάζουμε το Reg 5.
+        // Γράφουμε στο Reg 5 και ΤΑΥΤΟΧΡΟΝΑ διαβάζουμε το Reg 5.
         // Πρέπει να δούμε τη ΝΕΑ τιμή στον επόμενο κύκλο, όχι την παλιά (0).
         $display("Test 3: Forwarding Check (Write & Read Same Address)");
         

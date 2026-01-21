@@ -1,76 +1,82 @@
-%==============================================================================
+%=======================================================================
 \section{Άσκηση 3: Register File}
-%==============================================================================
+%=======================================================================
 
 \subsection{Περιγραφή}
+Το αρχείο καταχωρητών (Register File) είναι ένα σημαντικό στοιχείο κάθε ψηφιακού συστήματος. Σε αυτή την άσκηση υλοποιήθηκε ένα Register File 16 καταχωρητών, το οποίο θα χρησιμοποιηθεί στον AI accelerator (Άσκηση 4) για την αποθήκευση των βαρών (weights) και των πολώσεων (biases) του νευρωνικού δικτύου. Το Register File που υλοποιήθηκε υποστηρίζει παραμετροποιήσιμο πλάτος δεδομένων (DATAWIDTH) και ασύγχρονο reset.
 
-Το Register File υλοποιεί:
-\begin{itemize}
-    \item 16 καταχωρητές × 32 bits (παραμετροποιήσιμο DATAWIDTH)
-    \item 4 θύρες ανάγνωσης (readData1-4)
-    \item 2 θύρες εγγραφής (writeData1-2)
-    \item Ασύγχρονο reset (active low)
-    \item Data forwarding για αποφυγή hazards
-\end{itemize}
 
-\subsection{Data Forwarding}
-
-Σε περίπτωση που η διεύθυνση ανάγνωσης ταυτίζεται με διεύθυνση εγγραφής και το \texttt{write} είναι ενεργό, επιστρέφονται απευθείας τα νέα δεδομένα (write-first behavior):
-
-\begin{lstlisting}[caption=Data Forwarding με προτεραιότητα εγγραφής]
-if (write) begin
-    // Εγγραφή δεδομένων
-    registers[writeReg1] <= writeData1;
-    registers[writeReg2] <= writeData2;
-    
-    // Forwarding: προτεραιότητα στο writeData
-    if (readReg1 == writeReg1)      readData1 <= writeData1;
-    else if (readReg1 == writeReg2) readData1 <= writeData2;
-    else                            readData1 <= registers[readReg1];
-    // ... ομοίως για ports 2, 3, 4
-end
-else begin
-    // Μόνο ανάγνωση
-    readData1 <= registers[readReg1];
-    // ...
-end
-\end{lstlisting}
-
-\subsection{Σχεδιαστικές Αποφάσεις - Σύγχρονη Ανάγνωση}
-
-Σύμφωνα με την εκφώνηση, το Register File υλοποιεί \textbf{σύγχρονη ανάγνωση} μέσα σε ένα always block:
-
-\begin{itemize}
-    \item \textbf{Απαίτηση εκφώνησης:} ``Μέσω ενός always block, θα γίνεται η εγγραφή ή ανάγνωση''
-    \item \textbf{Αμοιβαίος αποκλεισμός:} ``θεωρούμε ότι δεν μπορούμε να πραγματοποιήσουμε ταυτόχρονα και ανάγνωση και εγγραφή''
-    \item \textbf{Registered outputs:} Τα \texttt{readData} ενημερώνονται στο \texttt{posedge clk}
-    \item \textbf{Επίπτωση στο FSM:} Τα δεδομένα είναι διαθέσιμα στον \textbf{επόμενο} κύκλο
-\end{itemize}
-
-\subsubsection{Συμβατότητα με το Νευρωνικό Δίκτυο - Τεχνική Pre-fetching}
-
-\textbf{Απαίτηση της εκφώνησης:} Το Register File υλοποιήθηκε με \textbf{σύγχρονη ανάγνωση} (ένα always block για εγγραφή ή ανάγνωση), σύμφωνα με τις οδηγίες:
-\begin{quote}
-\textit{``Μέσω ενός always block, θα γίνεται η εγγραφή ή ανάγνωση''}
-\end{quote}
-
-Αυτή η σχεδιαστική επιλογή σημαίνει ότι τα δεδομένα εμφανίζονται στις εξόδους \texttt{readData} \textbf{έναν κύκλο μετά} τον ορισμό της διεύθυνσης \texttt{readReg}.
-
-\textbf{Τεχνική Pre-fetching:} Για να αντιμετωπιστεί αυτή η καθυστέρηση, το FSM του \texttt{nn.v} εφαρμόζει τεχνική \textbf{pre-fetching διευθύνσεων}: οι διευθύνσεις τίθενται \textbf{ένα κύκλο νωρίτερα} από ότι χρειάζονται τα δεδομένα.
+\subsection{Αρχιτεκτονική}
+Το regfile module σχεδιάστηκε ως ακολουθιακό κύκλωμα με τις ακόλουθες θύρες εισόδου/εξόδου:
 
 \begin{table}[H]
 \centering
-\caption{Pre-fetching διευθύνσεων RegFile στο FSM}
-\begin{tabular}{|l|l|l|}
+\caption{Θύρες του module regfile}
+\begin{tabular}{|l|c|c|p{7cm}|}
 \hline
-\textbf{Τρέχουσα Κατάσταση} & \textbf{Διευθύνσεις που θέτουμε (pre-fetch)} & \textbf{Δεδομένα διαθέσιμα στην} \\
+\textbf{Θύρα} & \textbf{Κατεύθυνση} & \textbf{Πλάτος} & \textbf{Περιγραφή} \\
 \hline
-S\_IDLE / S\_DEACTIVATED & shift\_bias\_1, shift\_bias\_2 & S\_PREPROCESS \\
-S\_PREPROCESS & weight\_1, bias\_1, weight\_2, bias\_2 & S\_INPUT\_LAYER \\
-S\_INPUT\_LAYER & weight\_3, weight\_4, bias\_3 & S\_OUTPUT\_LAYER1 \\
-S\_OUTPUT\_LAYER1 & shift\_bias\_3 & S\_POSTPROCESS \\
+\texttt{clk} & Είσοδος & 1 & Σήμα ρολογιού \\
+\texttt{resetn} & Είσοδος & 1 & Σήμα επαναφοράς (active low) \\
+\texttt{write} & Είσοδος & 1 & Σήμα ενεργοποίησης εγγραφής \\
+\texttt{readReg1-4} & Είσοδοι & 4 & Διευθύνσεις ανάγνωσης (4 θύρες) \\
+\texttt{writeReg1-2} & Είσοδοι & 4 & Διευθύνσεις εγγραφής (2 θύρες) \\
+\texttt{writeData1-2} & Είσοδοι & DW & Δεδομένα προς εγγραφή \\
+\hdashline
+\texttt{readData1-4} & Έξοδοι & DW & Δεδομένα ανάγνωσης (4 θύρες) \\
 \hline
 \end{tabular}
 \end{table}
 
-Αυτή η τεχνική ``read-ahead'' εξασφαλίζει ότι τα δεδομένα είναι έτοιμα όταν τα χρειάζεται η ALU/MAC, χωρίς να χρειάζονται επιπλέον κύκλοι αναμονής.
+\subsubsection{Λειτουργία Reset και Read/Write}
+Η λειτουργία του Register File βασίζεται σε ένα κεντρικό \texttt{always} block.
+\begin{itemize}
+    \item \textbf{Reset}: Όλοι οι καταχωρητές αρχικοποιούνται \textbf{ασύγχρονα} στο μηδέν όταν το \texttt{resetn} είναι χαμηλό.
+    \item \textbf{Read/Write}: Tα δεδομένα διαβάζονται/εγγράφονται στους επιλεγμένους καταχωρητές \textbf{σύγχρονα} με την ανερχόμενη ακμή του clk.
+\end{itemize}
+
+\begin{lstlisting} [caption=Always block του Registel file, language=Verilog]
+always @(posedge clk or negedge resetn) begin
+    if (!resetn) begin
+        // Asynchronous reset
+        for (i = 0; i < 16; i = i + 1) begin
+            registers[i] <= {DATAWIDTH{1'b0}}; // Clear all
+        end
+        readData1 <= {DATAWIDTH{1'b0}};
+        ...
+    end
+    else begin
+        // Synchronous read/write
+        if (write) begin
+            registers[writeReg1] <= writeData1; // Write
+            ...
+        end
+        else begin
+            readData1 <= registers[readReg1]; // Read
+            ...
+        end
+    end
+\end{lstlisting}
+
+\subsection{Data Forwarding (Προώθηση Δεδομένων)}
+Ένα κρίσιμο χαρακτηριστικό της αρχιτεκτονικής είναι η λογική Data Forwarding. Σε περίπτωση που η διεύθυνση ανάγνωσης ταυτίζεται με μια διεύθυνση εγγραφής στον ίδιο κύκλο, πρέπει να δοθεί \textbf{προτεραιότητα στην εγγραφή}.
+
+Αντί να διαβαστεί η "παλιά" τιμή του καταχωρητή, στην έξοδο οδηγείται απευθείας η νέα τιμή (\texttt{writeData}). Η προτεραιότητα καθορίζεται ως εξής:
+
+\begin{enumerate}
+    \item Forwarding από Write Port 1 (Υψηλότερη προτεραιότητα)
+    \item Forwarding από Write Port 2 στους επιλεγμένους καταχωρητές \item Ανάγνωση από Register Array (Κανονική λειτουργία)
+\end{enumerate}
+
+\begin{lstlisting}[caption=Υλοποίηση Data Forwarding, language=Verilog]
+// Example for Port 1
+if (readReg1 == writeReg1)      
+    readData1 <= writeData1;    // Priority 1
+else if (readReg1 == writeReg2) 
+    readData1 <= writeData2;    // Priority 2
+else                            
+    readData1 <= registers[readReg1]; // Normal Read
+\end{lstlisting}
+
+\textbf{Σημείωση:} Λόγω της σύγχρονης ανάγνωσης (τα δεδομένα εμφανίζονται στον επόμενο κύκλο), το FSM που θα χρησιμοποιήσει αυτό το Register File πρέπει να εφαρμόσει τεχνική \textbf{pre-fetching διευθύνσεων} (βλ. Άσκηση 4).
+\newpage
