@@ -305,7 +305,7 @@ expected_val = nn_model(in1, in2);
 repeat(6) @(posedge clk);  
 // Now the both results are ready and can be compared...
 \end{lstlisting}
-
+\newpage
 \subsubsection{Αποτελέσματα Testbench}
 Τα αποτελέσματα της προσομοίωσης, όπως καταγράφηκαν από το testbench, παρουσιάζονται παρακάτω στο Figure \ref{fig:tb_results}.
 
@@ -327,7 +327,7 @@ RESULT: SUCCESS (All tests passed)
     \end{verbatim}
     \caption{Στιγμιότυπο κονσόλας από την εκτέλεση του \texttt{tb\_nn.v}}\label{fig:tb_results}
 \end{figure}
-
+\justify
 Όπως φαίνεται από την τελική αναφορά, το κύκλωμα πέρασε επιτυχώς και τις 300 περιπτώσεις ελέγχου (\textbf{100\% επιτυχία}), επιβεβαιώνοντας την ορθότητα της σχεδίασης του FSM, της διαχείρισης των καταχωρητών και της λογικής ανίχνευσης υπερχείλισης.
 
 
@@ -362,6 +362,3 @@ RESULT: SUCCESS (All tests passed)
     \caption{Κυματομορφές προσομοίωσης του Νευρωνικού Δικτύου (Συνολική Εικόνα).}
     \label{fig:waveform2_ex4}
 \end{figure}
-\newpage
-      
-\newpage
