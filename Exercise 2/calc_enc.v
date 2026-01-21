@@ -1,25 +1,6 @@
 //==============================================================================
 // Calculator Encoder Module - Άσκηση 2
 // Structural Verilog - Παραγωγή alu_op από btnl, btnr, btnd
-// Βασισμένο στα Σχήματα 2-5 της εκφώνησης
-//
-// Εξισώσεις από τα σχήματα:
-// alu_op[0] = (NOT(btnl) AND btnd) OR ((btnl AND btnr) AND NOT(btnd))  -- Σχ. 2
-// alu_op[1] = btnl AND (NOT(btnr) OR NOT(btnd))                        -- Σχ. 3
-// alu_op[2] = (NOT(btnl) AND btnr) OR (btnl AND NOT(btnr XOR btnd))    -- Σχ. 4
-// alu_op[3] = (btnl AND btnr) OR (btnl AND btnd)                       -- Σχ. 5
-//
-// Πίνακας Αλήθειας:
-// btnl btnr btnd | alu_op | Λειτουργία
-// ----+----+----+---------+-----------
-//  0    0    0  |  0000   | SRL
-//  0    0    1  |  0001   | SLL
-//  0    1    0  |  0100   | ADD
-//  0    1    1  |  0101   | SUB
-//  1    0    0  |  0110   | MULT
-//  1    0    1  |  1010   | NOR
-//  1    1    0  |  1011   | NAND
-//  1    1    1  |  1100   | XOR
 //==============================================================================
 
 module calc_enc (

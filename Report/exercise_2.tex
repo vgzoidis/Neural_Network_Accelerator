@@ -3,38 +3,83 @@
 %==============================================================================
 
 \subsection{Περιγραφή}
+Σε αυτή την άσκηση σχεδιάστηκε ένα κύκλωμα αριθμομηχανής (calc.v) που χρησιμοποιεί την ALU της Άσκησης 1. Το κύκλωμα διατηρεί μια τρέχουσα τιμή σε έναν συσσωρευτή (accumulator) 16-bit και επιτρέπει στον χρήστη να εκτελεί ορισμένες αριθμητικές και λογικές πράξεις μέσω της ALU. Οι λειτουργίες της αριθμομηχανής επιλέγονται μέσω τριών κουμπιών (btnl, btnr, btnd) και το αποτέλεσμα εμφανίζεται στην έξοδο led (16-bit).
 
-Η αριθμομηχανή χρησιμοποιεί την ALU της Άσκησης 1 και περιλαμβάνει:
+\subsection{Αρχιτεκτονική}
+Το calc module ως ακολουθιακό κύκλωμα με τις ακόλουθες θύρες εισόδου/εξόδου:
+\begin{table}[H]
+\centering
+\caption{Θύρες του module calc}
+\begin{tabular}{|l|c|c|p{7cm}|}
+\hline
+\textbf{Θύρα} & \textbf{Κατεύθυνση} & \textbf{Πλάτος} & \textbf{Περιγραφή} \\
+\hline
+\texttt{clk} & Είσοδος & 1 & Σήμα ρολογιού \\
+\texttt{btnc} & Είσοδος & 1 & Κεντρικό πλήκτρο - εκτέλεση πράξης \\
+\texttt{btnac} & Είσοδος & 1 & Πλήκτρο εκκαθάρισης (all clear) \\
+\texttt{btnl} & Είσοδος & 1 & Αριστερό πλήκτρο (επιλογής) \\
+\texttt{btnr} & Είσοδος & 1 & Δεξί πλήκτρο (επιλογής) \\
+\texttt{btnd} & Είσοδος & 1 & Κάτω πλήκτρο (επιλογής) \\
+\texttt{sw} & Είσοδος & 16 & Διακόπτες εισαγωγής δεδομένων \\
+\hdashline
+\texttt{led} & Έξοδος & 16 & LED εξόδου του accumulator \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Συσσωρευτής (Accumulator)}
+
+Ο accumulator είναι ένας σύγχρονος εσωτερικός καταχωρητής 16-bit με τις εξής ιδιότητες:
 \begin{itemize}
-    \item Συσσωρευτή (accumulator) 16-bit
-    \item Είσοδο δεδομένων μέσω 16 διακοπτών
-    \item Έξοδο μέσω 16 LED
-    \item Επιλογή λειτουργίας μέσω τριών κουμπιών (btnl, btnr, btnd)
+    \item Συνδεδεμένος με την είσοδο ρολογιού (\texttt{clk})
+    \item Σύγχρονος μηδενισμός με το πάτημα του \texttt{btnac}
+    \item Ενημερώνεται με τα 16 χαμηλότερα bits του αποτελέσματος της ALU όταν πατηθεί το \texttt{btnc}
+    \item Η τιμή του εμφανίζεται στα LED
 \end{itemize}
 
-\subsection{Encoder (calc\_enc.v)}
+\begin{lstlisting}[caption=Συμπεριφορά Καταχωρητή Accumulator, language=Verilog]
+always @(posedge clk) begin
+    if (btnac)
+        accumulator <= 16'b0;           // Synchronous Reset
+    else if (btnc)
+        accumulator <= alu_result[15:0];
+end
+\end{lstlisting}
 
-Ο encoder υλοποιήθηκε σε \textbf{structural Verilog} χρησιμοποιώντας βασικές πύλες (AND, OR, NOT, XOR) σύμφωνα με τα Σχήματα 2-5 της εκφώνησης. Οι λογικές εξισώσεις για κάθε bit του alu\_op είναι:
+\subsubsection{Επέκταση Προσήμου (Sign Extension)}
+
+Επειδή η ALU δέχεται τελεστές 32-bit και ο accumulator/switches είναι 16-bit, εφαρμόζεται επέκταση προσήμου (sign extension). Το MSB (bit 15) επαναλαμβάνεται 16 φορές για τα υψηλότερα bits:
+
+\begin{lstlisting}[caption=Επέκταση προσήμου του MSB, language=Verilog]
+assign op1_extended={{16{accumulator[15]}},accumulator}; //acc -> 32-bit
+assign op2_extende ={{16{sw[15]}},sw};                   // sw -> 32-bit
+\end{lstlisting}
+
+\subsection{Encoder (calc\_enc.v)}
+Ο encoder (calc enc.v) υλοποιήθηκε σε \textbf{structural Verilog} χρησιμοποιώντας βασικές πύλες (AND, OR, NOT, XOR) σύμφωνα με τα Σχήματα 2-5 της εκφώνησης. Οι λογικές εξισώσεις για κάθε bit του alu\_op είναι:
 
 \begin{align}
-\text{alu\_op}[0] &= (\overline{\text{btnl}} \cdot \text{btnd}) + ((\text{btnl} \cdot \text{btnr}) \cdot \overline{\text{btnd}}) & \text{(Σχ. 2)} \\
-\text{alu\_op}[1] &= \text{btnl} \cdot (\overline{\text{btnr}} + \overline{\text{btnd}}) & \text{(Σχ. 3)} \\
-\text{alu\_op}[2] &= (\overline{\text{btnl}} \cdot \text{btnr}) + (\text{btnl} \cdot \overline{(\text{btnr} \oplus \text{btnd})}) & \text{(Σχ. 4)} \\
-\text{alu\_op}[3] &= (\text{btnl} \cdot \text{btnr}) + (\text{btnl} \cdot \text{btnd}) & \text{(Σχ. 5)}
+\text{(Σχ. 2):}\quad\text{alu\_op}[0] &= (\overline{\text{btnl}} \cdot \text{btnd}) + ((\text{btnl} \cdot \text{btnr}) \cdot \overline{\text{btnd}}) \\
+\text{(Σχ. 3):}\quad\text{alu\_op}[1] &= \text{btnl} \cdot (\overline{\text{btnr}} + \overline{\text{btnd}}) \\
+\text{(Σχ. 4):}\quad\text{alu\_op}[2] &= (\overline{\text{btnl}} \cdot \text{btnr}) + (\text{btnl} \cdot \overline{(\text{btnr} \oplus \text{btnd})}) \\
+\text{(Σχ. 5):}\quad\text{alu\_op}[3] &= (\text{btnl} \cdot \text{btnr}) + (\text{btnl} \cdot \text{btnd})
 \end{align}
 
+\justify
 Ο πίνακας αλήθειας που προκύπτει από αυτές τις εξισώσεις:
 
 \begin{center}
-\begin{tabular}{|c|c|c|c|l|}
+\begin{tabular}{|c|c|c|c|c|}
 \hline
 btnl & btnr & btnd & alu\_op & Λειτουργία \\
 \hline
-0 & 0 & 0 & 0000 & SRL (Λογική ολίσθηση δεξιά) \\
-0 & 0 & 1 & 0001 & SLL (Λογική ολίσθηση αριστερά) \\
-0 & 1 & 0 & 0100 & ADD (Πρόσθεση) \\
-0 & 1 & 1 & 0101 & SUB (Αφαίρεση) \\
-1 & 0 & 0 & 0110 & MULT (Πολλαπλασιασμός) \\
+0 & 0 & 0 & 0000 & SRL\\
+0 & 0 & 1 & 0001 & SLL\\
+\hdashline
+0 & 1 & 0 & 0100 & ADD\\
+0 & 1 & 1 & 0101 & SUB\\
+1 & 0 & 0 & 0110 & MULT\\
+\hdashline
 1 & 0 & 1 & 1010 & NOR \\
 1 & 1 & 0 & 1011 & NAND \\
 1 & 1 & 1 & 1100 & XOR \\
@@ -42,115 +87,45 @@ btnl & btnr & btnd & alu\_op & Λειτουργία \\
 \end{tabular}
 \end{center}
 
-\subsection{Διάγραμμα Αριθμομηχανής}
-
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[scale=0.9]
-    % Sign Extend for switches
-    \draw[thick] (0,4) rectangle (2.5,5);
-    \node at (1.25,4.5) {Sign Extend};
-    \draw[->,thick] (-1.5,4.5) -- (0,4.5);
-    \node[left] at (-1.5,4.5) {sw[15:0]};
-    
-    % ALU
-    \draw[thick] (4,2) rectangle (7,5);
-    \node at (5.5,3.5) {ALU};
-    \node at (5.5,4.5) {op1 \hspace{1cm} op2};
-    \node at (5.5,2.5) {result};
-    
-    % ALU Control
-    \draw[thick] (0,1) rectangle (2.5,2);
-    \node at (1.25,1.5) {ALU Control};
-    \draw[->,thick] (2.5,1.5) -- (4,3);
-    \node[above] at (3.25,2.25) {alu\_op};
-    
-    % Accumulator
-    \draw[thick] (4,-1) rectangle (7,0);
-    \node at (5.5,-0.5) {Accumulator};
-    
-    % Sign Extend for accumulator
-    \draw[thick] (4,0.5) rectangle (7,1.5);
-    \node at (5.5,1) {Sign Extend};
-    
-    % Connections
-    \draw[->,thick] (2.5,4.5) -- (4,4.5);
-    \draw[->,thick] (5.5,0) -- (5.5,0.5);
-    \draw[->,thick] (5.5,1.5) -- (5.5,2);
-    \draw[->,thick] (5.5,2) -- (4.5,2) -- (4.5,3.5);
-    \draw[->,thick] (5.5,2) -- (5.5,-1);
-    
-    % LED output
-    \draw[->,thick] (7,-0.5) -- (8.5,-0.5);
-    \node[right] at (8.5,-0.5) {led[15:0]};
-\end{tikzpicture}
-\caption{Διάγραμμα ροής της αριθμομηχανής}
-\end{figure}
-
 \subsection{Αποτελέσματα Testbench}
-
-Η αριθμομηχανή ελέγχθηκε με τα ακόλουθα τεστ:
-
+Η καλή λειτουργεία της αριθμομηχανής επιβεβαιώθηκε αποτυπώνοντας το έλεγχο της εκφώνησης στο calc\_tb.v:
 \begin{table}[H]
-\centering
-\caption{Αποτελέσματα τεστ αριθμομηχανής}
-\small
-\begin{tabular}{|c|c|c|c|c|c|}
-\hline
-\textbf{btnl,btnr,btnd} & \textbf{Acc (πριν)} & \textbf{Switches} & \textbf{Λειτουργία} & \textbf{Αναμενόμενο} & \textbf{Αποτέλεσμα} \\
-\hline
-Reset & xxxx & xxxx & Reset & 0x0000 & PASS \\
-0,1,0 & 0x0000 & 0x285a & ADD & 0x285a & PASS \\
-1,1,1 & 0x285a & 0x04c8 & XOR & 0x2c92 & PASS \\
-0,0,0 & 0x2c92 & 0x0005 & SRL & 0x0164 & PASS \\
-1,0,1 & 0x0164 & 0xa085 & NOR & 0x5e1a & PASS \\
-1,0,0 & 0x5e1a & 0x07fe & MULT & 0x13cc & PASS \\
-0,0,1 & 0x13cc & 0x0004 & SLL & 0x3cc0 & PASS \\
-1,1,0 & 0x3cc0 & 0xfa65 & NAND & 0xc7bf & PASS \\
-0,1,1 & 0xc7bf & 0xb2e4 & SUB & 0x14db & PASS \\
-\hline
-\end{tabular}
-
-\justify %stop centering
-\subsection{Κυματομορφές Αριθμομηχανής}
-
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[scale=0.8]
-    % Time axis
-    \draw[->,thick] (0,0) -- (14,0) node[right] {Time (ns)};
-    
-    % Clock
-    \node[left] at (0,5) {clk};
-    \foreach \i in {0,1,2,3,4,5,6,7,8,9,10,11,12,13} {
-        \draw[thick] (\i,4.5) -- (\i,5.5) -- (\i+0.5,5.5) -- (\i+0.5,4.5) -- (\i+1,4.5);
-    }
-    
-    % btnac
-    \node[left] at (0,4) {btnac};
-    \draw[thick] (0,3.5) -- (1,3.5) -- (1,4.5) -- (2,4.5) -- (2,3.5) -- (14,3.5);
-    
-    % btnc
-    \node[left] at (0,3) {btnc};
-    \draw[thick] (0,2.5) -- (3,2.5) -- (3,3.5) -- (4,3.5) -- (4,2.5) -- 
-                 (5,2.5) -- (5,3.5) -- (6,3.5) -- (6,2.5) -- (14,2.5);
-    
-    % led
-    \node[left] at (0,2) {led};
-    \draw[thick,blue] (0,1.5) -- (2,1.5);
-    \draw[thick,blue] (2,1.5) -- (2,2.5) -- (4,2.5);
-    \node[above,font=\tiny] at (3,2.5) {0x285a};
-    \draw[thick,blue] (4,2.5) -- (4,1.8) -- (6,1.8);
-    \node[above,font=\tiny] at (5,1.8) {0x2c92};
-    
-    % Annotations
-    \draw[<-,red] (1.5,4.5) -- (1.5,5.5) node[above] {Reset};
-    \draw[<-,red] (3.5,3.5) -- (3.5,5.5) node[above] {ADD};
-    \draw[<-,red] (5.5,3.5) -- (5.5,5.5) node[above] {XOR};
-\end{tikzpicture}
-\caption{Σχηματική αναπαράσταση κυματομορφών αριθμομηχανής}
-\end{figure}
-
-\textbf{Σημείωση:} Για λεπτομερείς κυματομορφές, χρησιμοποιήστε τα αρχεία VCD που παράγονται από τα testbenches στο Playground EDA.
-
+    \centering
+    \caption{Αποτελέσματα Προσομοίωσης (Calculator Testbench)}
+    \label{tab:calc_testbench_results}
+    \begin{tabular}{|c|c|c|c|c|c|c|}
+        \hline
+        \textbf{\#} & \textbf{Input} & \textbf{Switches} & \textbf{Function} & \textbf{Expected} & \textbf{\hspace{0.2cm}Actual\hspace{0.2cm}} & \textbf{Test} \\
+         & \footnotesize{(btnl,btnr,btnd)} & (input) & (in ALU) & \textbf{Result} & \textbf{Result} & \textbf{Result}\\
+        \hline
+        1 & btnac & \texttt{xxxx} & Reset & \texttt{0x0000} & \texttt{0x0000} & {\textbf{PASS}} \\
+        2 & 0, 1, 0 & \texttt{0x285a} & ADD & \texttt{0x285a} & \texttt{0x285a} & {\textbf{PASS}} \\
+        3 & 1, 1, 1 & \texttt{0x04c8} & XOR & \texttt{0x2c92} & \texttt{0x2c92} & {\textbf{PASS}} \\
+        4 & 0, 0, 0 & \texttt{0x0005} & SRL & \texttt{0x0164} & \texttt{0x0164} & {\textbf{PASS}} \\
+        5 & 1, 0, 1 & \texttt{0xa085} & NOR & \texttt{0x5e1a} & \texttt{0x5e1a} & {\textbf{PASS}} \\
+        6 & 1, 0, 0 & \texttt{0x07fe} & MULT & \texttt{0x13cc} & \texttt{0x13cc} & {\textbf{PASS}} \\
+        7 & 0, 0, 1 & \texttt{0x0004} & SLL & \texttt{0x3cc0} & \texttt{0x3cc0} & {\textbf{PASS}} \\
+        8 & 1, 1, 0 & \texttt{0xfa65} & NAND & \texttt{0xc7bf} & \texttt{0xc7bf} & {\textbf{PASS}} \\
+        9 & 0, 1, 1 & \texttt{0xb2e4} & SUB & \texttt{0x14db} & \texttt{0x14db} & {\textbf{PASS}} \\
+        \hline
+        \multicolumn{7}{|c|}{\textbf{Συνολικό Αποτέλεσμα: \textcolor{green!50!black}{9/9 PASS}}} \\
+        \hline
+    \end{tabular}
 \end{table}
+
+\subsection{Κυματομορφές Προσομοίωσης}
+
+Τα παραπάνω μπορούμε να διαπιστώσουμε και στις κυματομορφές από την προσομοίωση του testbench (Figure \ref{fig:waveform_ex2}). Παρατηρούμε:
+\begin{itemize}
+    \item Η τιμή της εξόδου (\texttt{led}) ενημερώνεται -σύγχρονα- στην ανερχόμενη ακμή του \texttt{clk} όταν το \texttt{btnc} είναι ενεργό.
+    \item Το \texttt{btnac} λειτουργεί ως reset πάλι σύγχρονα.
+    \item Οι διαδοχικές τιμές αντιστοιχούν στα αναμενόμενα αποτελέσματα: \texttt{0x0} $\rightarrow$ \texttt{0x285a} $\rightarrow$ \texttt{0x2c92} $\rightarrow$ \texttt{0x0164} $\rightarrow$ \texttt{0x5e1a} $\rightarrow$ \texttt{0x13cc} $\rightarrow$ \texttt{0x3cc0} $\rightarrow$ \texttt{0xc7bf} $\rightarrow$ \texttt{0x14db}
+\end{itemize}
+
+\begin{figure}[htbp]
+    \centering
+    \makebox[\textwidth][c]{\includegraphics[width=1.1\textwidth]{"Waveforms/Exercise_2 - Waveform.png"}}
+    \caption{Κυματομορφές προσομοίωσης της αριθμομηχανής. Φαίνεται η εξέλιξη της τιμής του led μετά από κάθε πράξη.}
+    \label{fig:waveform_ex2}
+\end{figure} 
+\newpage
