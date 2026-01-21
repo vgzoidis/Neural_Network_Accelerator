@@ -169,10 +169,14 @@ S\_POSTPROCESS & S6 & 111 & Αριθμητική ολίσθηση αριστερ
 
 Το output layer του νευρωνικού δικτύου απαιτεί τον υπολογισμό:
 \begin{align}
-\text{mul3} &= \text{inter\_3} \times \text{weight\_3} \\
-\text{mac3} &= \text{mul3} + \text{bias\_3} \\
-\text{mul4} &= \text{inter\_4} \times \text{weight\_4} \\
-\text{mac4} &= \text{mul4} + \text{mac3} \quad \textit{(εξάρτηση!)}
+\text{inter}_5 &= \text{inter}_3 \times \text{weight}_3 + \text{inter}_4 \times \text{weight}_4 + \text{bias}_3
+\end{align}
+
+Η εκφώνηση ζητά: ``Υλοποιήστε την συγκεκριμένη λογική χρησιμοποιώντας τις δύο μονάδες MAC σειριακά''. Αυτή η απαίτηση υλοποιείται ως εξής:
+
+\begin{align}
+\text{mac3} &= \text{inter}_3 \times \text{weight}_3 + \text{bias}_3 \quad \text{(MAC1 στο S5a)} \\
+\text{inter}_5 &= \text{inter}_4 \times \text{weight}_4 + \text{mac3} \quad \text{(MAC2 στο S5b)}
 \end{align}
 
 \textbf{Πρόβλημα: Combinatorial Loop}
@@ -186,31 +190,66 @@ mac2_op3 = mac1_result;  // Απευθείας σύνδεση
 Αυτό δημιουργεί \textbf{combinatorial loop} γιατί:
 \begin{itemize}
     \item Το MAC1 είναι συνδυαστικό κύκλωμα (χωρίς ρολόι)
-    \item Η έξοδος του MAC1 τροφοδοτείται στην είσοδο του MAC2
+    \item Η έξοδος του MAC1 (\texttt{mac1\_result}) τροφοδοτείται στην είσοδο του MAC2
     \item Το MAC2 είναι επίσης συνδυαστικό
     \item Δεν υπάρχει καταχωρητής που να ``σπάει'' τον βρόχο
 \end{itemize}
 
 \textbf{Λύση: Pipelining με Register}
 
-Διαχωρίζουμε το output layer σε \textbf{δύο καταστάσεις}:
+Διαχωρίζουμε το output layer σε \textbf{δύο καταστάσεις} χρησιμοποιώντας και τις δύο MAC μονάδες σειριακά:
+
 \begin{enumerate}
-    \item \textbf{S\_OUTPUT\_LAYER1:} MAC1 υπολογίζει \texttt{inter\_3 × weight\_3 + bias\_3}. Το αποτέλεσμα αποθηκεύεται σε register (\texttt{mac1\_temp}) στο τέλος του κύκλου.
-    \item \textbf{S\_OUTPUT\_LAYER2:} MAC1 υπολογίζει \texttt{inter\_4 × weight\_4 + mac1\_temp}. Χρησιμοποιεί το \textbf{registered} αποτέλεσμα από τον προηγούμενο κύκλο.
+    \item \textbf{S\_OUTPUT\_LAYER1 (S5a):} 
+    \begin{itemize}
+        \item MAC1 υπολογίζει: \texttt{mac1\_result = inter\_3 × weight\_3 + bias\_3}
+        \item Το αποτέλεσμα αποθηκεύεται σε register (\texttt{mac1\_temp}) στο τέλος του κύκλου
+    \end{itemize}
+    
+    \item \textbf{S\_OUTPUT\_LAYER2 (S5b)}: 
+    \begin{itemize}
+        \item MAC2 υπολογίζει: \texttt{mac2\_result = inter\_4 × weight\_4 + mac1\_temp}
+        \item Χρησιμοποιεί το \textbf{registered} αποτέλεσμα (\texttt{mac1\_temp}) από τον προηγούμενο κύκλο
+        \item Αποθηκεύει το τελικό αποτέλεσμα στο \texttt{inter\_5}
+    \end{itemize}
 \end{enumerate}
 
-\begin{lstlisting}[caption=Σωστός κώδικας (με register)]
-// S_OUTPUT_LAYER1: Αποθήκευση σε register
+\begin{lstlisting}[caption=Σωστός κώδικας (με register - χωρίς combinatorial loop), language=Verilog]
+// S_OUTPUT_LAYER1: Φόρτωση MAC1 και αποθήκευση σε register
+case (state)
+    S_OUTPUT_LAYER1: begin
+        mac1_op1 = inter_3;
+        mac1_op2 = rf_readData1;  // weight_3
+        mac1_op3 = rf_readData2;  // bias_3
+    end
+endcase
+
 always @(posedge clk) begin
     if (state == S_OUTPUT_LAYER1)
-        mac1_temp <= mac1_result;  // Registered!
+        mac1_temp <= mac1_result;  // Registered result
 end
 
-// S_OUTPUT_LAYER2: Χρήση του registered result
-mac1_op3 = mac1_temp;  // No loop!
+// S_OUTPUT_LAYER2: Φόρτωση MAC2 και χρήση του registered result
+case (state)
+    S_OUTPUT_LAYER2: begin
+        mac2_op1 = inter_4;
+        mac2_op2 = rf_readData1;  // weight_4
+        mac2_op3 = mac1_temp;     // Registered! No loop!
+    end
+endcase
+
+always @(posedge clk) begin
+    if (state == S_OUTPUT_LAYER2)
+        inter_5 <= mac2_result;  // Final result
+end
 \end{lstlisting}
 
-\textbf{Συνέπεια:} Η υλοποίηση στο \texttt{nn.v} χρησιμοποιεί \textbf{8 καταστάσεις} (S0-S6 + επιπλέον διαχωρισμό του S5), παρόλο που το διάγραμμα δείχνει 7 στάδια σύμφωνα με την εκφώνηση. Αυτός ο διαχωρισμός είναι απαραίτητος για την αποφυγή combinatorial loops και την εξασφάλιση σωστής λειτουργίας στην προσομοίωση.
+\textbf{Αποτέλεσμα:} Η υλοποίηση χρησιμοποιεί \textbf{8 καταστάσεις} (S0-S6, με S5 διαχωρισμένο σε S5a και S5b), παρόλο που το διάγραμμα δείχνει 7 στάδια σύμφωνα με την εκφώνηση. Αυτός ο διαχωρισμός είναι \textbf{απαραίτητος} για:
+\begin{itemize}
+    \item Αποφυγή combinatorial loops
+    \item Χρήση και των δύο MAC μονάδων σειριακά (όπως ζητά η εκφώνηση)
+    \item Εξασφάλιση σωστής λειτουργίας στην προσομοίωση
+\end{itemize}
 
 \subsubsection{Επιλογή Κωδικοποίησης Καταστάσεων}
 
@@ -296,6 +335,17 @@ S\_POSTPROCESS & -- & shift\_bias\_3 \\
     \item \textbf{Απόφαση:} Προσαρμόσαμε το \texttt{nn.v} ώστε να επιστρέφει \texttt{0xFFFFFFFF} για να περνάει επιτυχώς το testbench
     \item Σε 32-bit signed αναπαράσταση, το \texttt{0xFFFFFFFF} αντιστοιχεί στο $-1$, όχι στο max positive
 \end{itemize}
+
+\begin{lstlisting}[caption=Ακολουθούμε το nn\_model για να περάσει το testbench, language=Verilog]
+case (state)
+  //==================================================================
+  // Constants
+  //==================================================================
+  localparam [31:0] OVERFLOW_VALUE = 32'hFFFFFFFF; //adapted to nn_model
+  localparam [2:0]  NO_OVERFLOW    = 3'b111;
+  localparam [2:0]  NO_ZERO        = 3'b111;
+endcase
+\end{lstlisting}
 
 \subsection{Αποθήκευση Δεδομένων}
 
@@ -436,15 +486,15 @@ run_test(temp_in1, temp_in2, "Normal Range");
 
 \textbf{Πρόβλημα:} Η εκφώνηση αναφέρει ότι το \texttt{nn\_model} είναι στιγμιαίο, αλλά το κύκλωμα έχει καθυστέρηση λόγω του FSM. Αν γίνει σύγκριση πολύ νωρίς ή πολύ αργά, το τεστ αποτυγχάνει ακόμα και αν το κύκλωμα λειτουργεί σωστά.
 
-\textbf{Λύση:} Μέσω debugging, βρέθηκε ότι τα έγκυρα δεδομένα εμφανίζονται ακριβώς \textbf{12 κύκλους} μετά τον παλμό enable:
+\textbf{Λύση:} Τα έγκυρα δεδομένα εμφανίζονται ακριβώς \textbf{6 κύκλους} μετά τον παλμό enable:
 \begin{lstlisting}[style=verilogstyle]
 // Μέσα στο task run_test:
-repeat(12) @(posedge clk);  // Αναμονή 12 κύκλων
+repeat(6) @(posedge clk);  // Αναμονή 6 κύκλων
 expected_val = nn_model(in1, in2);
 // Τώρα γίνεται η σύγκριση...
 \end{lstlisting}
 
-\textbf{Διδαγμα:} Η σωστή βαθμονόμηση του timing είναι κρίσιμη για testbenches. Η καθυστέρηση εξαρτάται από τον αριθμό καταστάσεων του FSM (8 καταστάσεις στην περίπτωσή μας).
+\textbf{Διδαγμα:} Η σωστή βαθμονόμηση του timing είναι κρίσιμη για testbenches. Η καθυστέρηση εξαρτάται από τον αριθμό καταστάσεων του FSM που διατρέχονται (6 καταστάσεις στην περίπτωσή μας).
 
 \paragraph{3. Διόρθωση Γέννησης Signed Τυχαίων Αριθμών}
 
@@ -527,3 +577,5 @@ temp_in1 = $signed({1'b1, raw_rand[30:0]}); // Force negative
 \end{tikzpicture}
 \caption{Σχηματική αναπαράσταση κυματομορφών FSM νευρωνικού}
 \end{figure}
+ if (final\_output === expected) begin //ΜΠΟΡΟΥΜΕ ΝΑ ΔΟΥΜΕ ΠΩΣ ΤΟ ΑΠΟΤΕΛΕΣΜΑ ΣΤΟ WAVEFORM ΕΜΦΑΝΙΖΕΤΑΙ ΣΕ 1 ΚΥΚΛΟ ΕΝΩ ΤΟ ΝΕΥΡΩΝΙΚΟ ΣΕ 6        
+\newpage
