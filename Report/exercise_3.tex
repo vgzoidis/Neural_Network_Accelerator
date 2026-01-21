@@ -8,9 +8,7 @@
 
 \subsection{Αρχιτεκτονική}
 Το regfile module σχεδιάστηκε ως ακολουθιακό κύκλωμα με τις ακόλουθες θύρες εισόδου/εξόδου:
-
 \begin{table}[H]
-\centering
 \caption{Θύρες του module regfile}
 \begin{tabular}{|l|c|c|p{7cm}|}
 \hline
@@ -28,31 +26,25 @@
 \end{tabular}
 \end{table}
 
-\subsubsection{Λειτουργία Reset και Read/Write}
+\subsection{Λειτουργία Reset και Read/Write}
 Η λειτουργία του Register File βασίζεται σε ένα κεντρικό \texttt{always} block.
 \begin{itemize}
     \item \textbf{Reset}: Όλοι οι καταχωρητές αρχικοποιούνται \textbf{ασύγχρονα} στο μηδέν όταν το \texttt{resetn} είναι χαμηλό.
     \item \textbf{Read/Write}: Tα δεδομένα διαβάζονται/εγγράφονται στους επιλεγμένους καταχωρητές \textbf{σύγχρονα} με την ανερχόμενη ακμή του clk.
 \end{itemize}
 
-\begin{lstlisting} [caption=Always block του Registel file, language=Verilog]
+\begin{lstlisting} [caption=Always block του Register file, language=Verilog]
 always @(posedge clk or negedge resetn) begin
-    if (!resetn) begin
-        // Asynchronous reset
+    if (!resetn) begin // Asynchronous reset
         for (i = 0; i < 16; i = i + 1) begin
             registers[i] <= {DATAWIDTH{1'b0}}; // Clear all
         end
         readData1 <= {DATAWIDTH{1'b0}};
         ...
     end
-    else begin
-        // Synchronous read/write
+    else begin // Synchronous read/write
         if (write) begin
             registers[writeReg1] <= writeData1; // Write
-            ...
-        end
-        else begin
-            readData1 <= registers[readReg1]; // Read
             ...
         end
     end
@@ -77,6 +69,4 @@ else if (readReg1 == writeReg2)
 else                            
     readData1 <= registers[readReg1]; // Normal Read
 \end{lstlisting}
-
-\textbf{Σημείωση:} Λόγω της σύγχρονης ανάγνωσης (τα δεδομένα εμφανίζονται στον επόμενο κύκλο), το FSM που θα χρησιμοποιήσει αυτό το Register File πρέπει να εφαρμόσει τεχνική \textbf{pre-fetching διευθύνσεων} (βλ. Άσκηση 4).
 \newpage

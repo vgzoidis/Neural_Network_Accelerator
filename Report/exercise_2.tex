@@ -1,12 +1,13 @@
-%==============================================================================
+%=======================================================================
 \section{Άσκηση 2: Αριθμομηχανή (Calculator)}
-%==============================================================================
+%=======================================================================
 
 \subsection{Περιγραφή}
 Σε αυτή την άσκηση σχεδιάστηκε ένα κύκλωμα αριθμομηχανής (calc.v) που χρησιμοποιεί την ALU της Άσκησης 1. Το κύκλωμα διατηρεί μια τρέχουσα τιμή σε έναν συσσωρευτή (accumulator) 16-bit και επιτρέπει στον χρήστη να εκτελεί ορισμένες αριθμητικές και λογικές πράξεις μέσω της ALU. Οι λειτουργίες της αριθμομηχανής επιλέγονται μέσω τριών κουμπιών (btnl, btnr, btnd) και το αποτέλεσμα εμφανίζεται στην έξοδο led (16-bit).
 
 \subsection{Αρχιτεκτονική}
-Το calc module ως ακολουθιακό κύκλωμα με τις ακόλουθες θύρες εισόδου/εξόδου:
+Το calc module υλοποιήθηκε ως ακολουθιακό κύκλωμα με τις ακόλουθες θύρες εισόδου/εξόδου:
+
 \begin{table}[H]
 \centering
 \caption{Θύρες του module calc}
@@ -40,7 +41,7 @@
 \begin{lstlisting}[caption=Συμπεριφορά Καταχωρητή Accumulator, language=Verilog]
 always @(posedge clk) begin
     if (btnac)
-        accumulator <= 16'b0;           // Synchronous Reset
+        accumulator <= 16'b0;            // Synchronous Reset
     else if (btnc)
         accumulator <= alu_result[15:0];
 end
@@ -52,11 +53,11 @@ end
 
 \begin{lstlisting}[caption=Επέκταση προσήμου του MSB, language=Verilog]
 assign op1_extended={{16{accumulator[15]}},accumulator}; //acc -> 32-bit
-assign op2_extende ={{16{sw[15]}},sw};                   // sw -> 32-bit
+assign op2_extended={{16{sw[15]}},sw};                   // sw -> 32-bit
 \end{lstlisting}
 
 \subsection{Encoder (calc\_enc.v)}
-Ο encoder (calc enc.v) υλοποιήθηκε σε \textbf{structural Verilog} χρησιμοποιώντας βασικές πύλες (AND, OR, NOT, XOR) σύμφωνα με τα Σχήματα 2-5 της εκφώνησης. Οι λογικές εξισώσεις για κάθε bit του alu\_op είναι:
+Ο encoder (calc\_enc.v) υλοποιήθηκε σε \textbf{structural Verilog} χρησιμοποιώντας βασικές πύλες (AND, OR, NOT, XOR) σύμφωνα με τα Σχήματα 2-5 της εκφώνησης. Οι λογικές εξισώσεις για κάθε bit του alu\_op είναι:
 
 \begin{align}
 \text{(Σχ. 2):}\quad\text{alu\_op}[0] &= (\overline{\text{btnl}} \cdot \text{btnd}) + ((\text{btnl} \cdot \text{btnr}) \cdot \overline{\text{btnd}}) \\
@@ -88,7 +89,8 @@ btnl & btnr & btnd & alu\_op & Λειτουργία \\
 \end{center}
 
 \subsection{Αποτελέσματα Testbench}
-Η καλή λειτουργεία της αριθμομηχανής επιβεβαιώθηκε αποτυπώνοντας το έλεγχο της εκφώνησης στο calc\_tb.v:
+Η καλή λειτουργία της αριθμομηχανής επιβεβαιώθηκε αποτυπώνοντας τον έλεγχο της εκφώνησης στο calc\_tb.v:
+
 \begin{table}[H]
     \centering
     \caption{Αποτελέσματα Προσομοίωσης (Calculator Testbench)}
@@ -124,8 +126,8 @@ btnl & btnr & btnd & alu\_op & Λειτουργία \\
 
 \begin{figure}[htbp]
     \centering
-    \makebox[\textwidth][c]{\includegraphics[width=1.1\textwidth]{"Waveforms/Exercise_2 - Waveform.png"}}
+    \makebox[\textwidth][c]{\includegraphics[width=1.1\textwidth]{Waveforms/Exercise_2 - Waveform.png}}
     \caption{Κυματομορφές προσομοίωσης της αριθμομηχανής. Φαίνεται η εξέλιξη της τιμής του led μετά από κάθε πράξη.}
     \label{fig:waveform_ex2}
-\end{figure} 
+\end{figure}
 \newpage
